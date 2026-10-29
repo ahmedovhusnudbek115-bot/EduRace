@@ -1,0 +1,23 @@
+{
+  "id": "./",
+  "name": "Edu Race — Oʻqi. Poygada yut.",
+  "short_name": "Edu Race",
+  "description": "Oʻquvchilar uchun ta'limiy poyga oʻyini: toʻgʻri javob darvozasidan oʻting va nitro oling! Matematika, ingliz tili, tarix va fan.",
+  "lang": "uz",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#07051a",
+  "theme_color": "#07051a",
+  "categories": ["education", "games", "kids"],
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "screenshots": [
+    {"src": "screenshots/race.png", "sizes": "1600x900", "type": "image/png", "form_factor": "wide", "label": "Savol darvozalari"},
+    {"src": "screenshots/menu.png", "sizes": "1600x900", "type": "image/png", "form_factor": "wide", "label": "Fan va sinf tanlash"}
+  ]
+}
