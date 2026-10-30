@@ -644,7 +644,7 @@ function fmtTime(t){ const m=Math.floor(t/60), s=t-m*60; return `${m}:${s<10?'0'
 function showResults(){
   state='results';
   const place=playerPlace, bonus=[100,60,40,20,10,5][place-1]||0;
-  const earned=stats.coins+bonus; save.coins+=earned; save.races++; if(place===1) save.wins++; persist();
+  const earned=stats.coins+bonus; save.coins=Math.min(10000000, save.coins+earned); save.races=Math.min(10000000, save.races+1); if(place===1) save.wins=Math.min(save.races, save.wins+1); persist();
   const acc=stats.total?Math.round(stats.correct/stats.total*100):0;
   const medal=['🥇','🥈','🥉'][place-1]||'🏁';
   $('rPlace').textContent=`${medal} ${place}-oʻrin`;
