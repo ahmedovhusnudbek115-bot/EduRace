@@ -1,0 +1,19 @@
+# --- MAXFIY: hech qachon GitHub'ga yuklanmasin ---
+# Android imzo kalitlari va parollar
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+signing-key-info*
+key.properties
+# Android paketlar (do'konga alohida yuklanadi)
+*.aab
+*.apk
+# Muhit o'zgaruvchilari / tokenlar
+.env
+.env.*
+# Tizim fayllari
+.DS_Store
+Thumbs.db
+desktop.ini

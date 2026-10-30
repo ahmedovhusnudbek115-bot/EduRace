@@ -8,3 +8,5 @@ Oʻquvchilar uchun taʼlimiy poyga oʻyini. Yoʻlda savol chiqadi, toʻgʻri jav
 - Sinflar: 1–4, 5–9, 10–11
 - 6 ta mashina, 2 davra, 14 ta savol, garaj
 - Internetsiz ishlaydi, hech qanday maʼlumot yigʻmaydi, reklama yoʻq
+- 🔒 Xavfsizlik: qatʼiy CSP + Trusted Types, tashqi kutubxonalar yoʻq — batafsil [SECURITY.md](SECURITY.md)
+- 📄 [Maxfiylik siyosati](https://ahmedovhusnudbek115-bot.github.io/EduRace/privacy.html)
