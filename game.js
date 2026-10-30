@@ -281,7 +281,9 @@ function buildSprites(){
 const segmentLength=200, rumbleLength=3, roadWidth=2000, lanes=3, drawDistance=300, fogDensity=4.2, cameraHeight=1000, fieldOfView=100;
 const cameraDepth=1/Math.tan((fieldOfView/2)*Math.PI/180);
 const playerZ=cameraHeight*cameraDepth;
-const maxSpeed=9000, nitroSpeed=13800, accel=maxSpeed/4.2, breaking=-maxSpeed*1.2, decel=-maxSpeed/5, offRoadDecel=-maxSpeed/1.8, offRoadLimit=maxSpeed/3.2, centrifugal=0.3;
+const maxSpeed=9000, nitroSpeed=13800, accel=maxSpeed/4.2, breaking=-maxSpeed*1.2, decel=-maxSpeed/5, offRoadDecel=-maxSpeed/1.8, offRoadLimit=maxSpeed/3.2, centrifugal=0.12;
+const STEER_RATE=2.7, WALL_OFF=1+1/6, WALL_H=430, EDGE=WALL_OFF-0.16-0.005; // yoʻl chetidagi toʻsiq
+let scrapeT=0;
 const LANE_X=[-2/3,0,2/3];
 const CAR_W=640, GATE_W=1180;
 const LAPS=2, START_SEG=14, GATE_FIRST=170, GATE_GAP=360, SHOW_SEGS=345;
@@ -321,8 +323,8 @@ function buildTrack(){
   // yoʻl boʻyi bezaklari
   for(let n=8;n<segments.length;n+=12){ const p=(Math.floor(n/96)%2===0); addSprite(n,p?SPR.lampL:SPR.lampPL,-1.18); addSprite(n,p?SPR.lampR:SPR.lampPR,1.18); }
   for(let n=4;n<segments.length;n+=5){ addSprite(n,pick(SPR.buildings),-(1.75+Math.random()*1.4)); addSprite(n+2,pick(SPR.buildings),1.75+Math.random()*1.4); }
-  for(let n=60;n<segments.length-20;n+=110){ addSprite(n,pick(SPR.boards),(Math.floor(n/110)%2?1.32:-1.32)); }
-  for(let n=30;n<segments.length;n+=9){ if(Math.random()<.5) addSprite(n,SPR.tree,(Math.random()<.5?-1:1)*(1.45+Math.random()*0.15)); }
+  for(let n=60;n<segments.length-20;n+=110){ addSprite(n,pick(SPR.boards),(Math.floor(n/110)%2?1.55:-1.55)); }
+  for(let n=30;n<segments.length;n+=9){ if(Math.random()<.5) addSprite(n,SPR.tree,(Math.random()<.5?-1:1)*(1.62+Math.random()*0.12)); }
   // savol darvozalari
   gates=[];
   for(let s=GATE_FIRST; s<segments.length-160; s+=GATE_GAP){ const g={seg:s}; segments[s].gate=g; gates.push(g); }
@@ -356,6 +358,7 @@ const Sound={ctx:null, osc:null, gain:null, filt:null,
   good(){ this.tone(660,.12,'triangle',.18,0); this.tone(880,.12,'triangle',.18,.09); this.tone(1320,.25,'triangle',.18,.18); this.tone(300,.6,'sawtooth',.05,0,1200); },
   bad(){ this.tone(220,.35,'square',.12,0,90); this.tone(150,.4,'sawtooth',.1,.05,60); },
   bump(){ this.tone(120,.15,'square',.12,0,50); },
+  scrape(){ this.tone(900,.12,'sawtooth',.035,0,500); },
   beep(hi){ this.tone(hi?1046:523,hi?.5:.18,'square',.12); },
   coin(){ this.tone(1568,.08,'square',.08,0); this.tone(2093,.15,'square',.08,.07); }
 };
@@ -473,9 +476,12 @@ function update(dt){
   const pseg=findSegment(position+playerZ);
   const sp=speed/maxSpeed;
   const dx=dt*2*Math.min(1,sp+0.2);
+  const steerDx=dt*STEER_RATE*Math.min(1,sp+0.45);
   let steer=0;
-  if(state==='race'){ if(keys.left){playerX-=dx;steer=-1;} if(keys.right){playerX+=dx;steer=1;} }
-  else playerX=lerp(playerX,LANE_X[nearestLane(playerX)],dt*2);
+  if(state==='race'){ if(keys.left){playerX-=steerDx;steer=-1;} if(keys.right){playerX+=steerDx;steer=1;} }
+  if(steer===0){ // rul qoʻyib yuborilganda mashina yaqin qatorga yumshoq qaytadi
+    const lx=LANE_X[nearestLane(playerX)]; playerX=lerp(playerX,lx,Math.min(1,dt*(state==='race'?1.1:2)));
+  }
   playerX -= dx*sp*pseg.curve*centrifugal;
   steerVis=lerp(steerVis,steer,Math.min(1,dt*8));
   const mult=myCar.mult;
@@ -488,7 +494,12 @@ function update(dt){
   if((playerX<-1||playerX>1) && speed>offRoadLimit) speed+=offRoadDecel*dt;
   const pAbs=posAbs+playerZ;
   for(const car of cars){ const d=car.dist-pAbs; if(d>-40 && d<260 && speed>car.speed && overlap(playerX,0.3,car.offset,0.3)){ speed=car.speed*0.82; playerX+= playerX<car.offset?-0.05:0.05; shake=Math.max(shake,0.35); Sound.bump(); break; } }
-  playerX=limit(playerX,-2.2,2.2); speed=limit(speed,0,nitroSpeed*mult);
+  if(scrapeT>0) scrapeT-=dt;
+  if(Math.abs(playerX)>EDGE){ // toʻsiqqa tegdi
+    playerX=Math.sign(playerX)*EDGE;
+    if(state==='race' && speed>maxSpeed*0.25){ speed-=maxSpeed*0.35*dt; shake=Math.max(shake,0.12); if(scrapeT<=0){ Sound.scrape(); scrapeT=0.35; } }
+  }
+  speed=limit(speed,0,nitroSpeed*mult);
   posAbs+=speed*dt; position=((posAbs%trackLength)+trackLength)%trackLength;
   skyX+=pseg.curve*sp*dt*0.012;
   updateCars(dt,true);
@@ -524,6 +535,20 @@ function renderSegment(x1,y1,w1,x2,y2,w2,f,color,idx){
       for(let l=1;l<lanes;l++,lx1+=lw1,lx2+=lw2) poly(lx1-l1/2,y1,lx1+l1/2,y1,lx2+l2/2,y2,lx2-l2/2,y2,color.lane); }
   }
   if(f<1){ ctx.globalAlpha=1-f; ctx.fillStyle=FOG_COLOR; ctx.fillRect(0,y2,W,y1-y2); ctx.globalAlpha=1; }
+}
+function renderWalls(s,alpha){ // yoʻl chetidagi neon toʻsiqlar
+  const p1=s.p1.screen, p2=s.p2.screen;
+  if(!(p1.scale>0)) return;
+  const h1=p1.scale*WALL_H*H/2, h2=p2.scale*WALL_H*H/2;
+  const odd=Math.floor(s.index/rumbleLength)%2;
+  ctx.globalAlpha=alpha;
+  for(const side of [-1,1]){
+    const x1=p1.x+side*p1.w*WALL_OFF, x2=p2.x+side*p2.w*WALL_OFF;
+    poly(x1,p1.y,x2,p2.y,x2,p2.y-h2,x1,p1.y-h1, odd?'#221d3d':'#2b2550');
+    const t1=Math.max(1,h1*0.2), t2=Math.max(1,h2*0.2);
+    poly(x1,p1.y-h1,x2,p2.y-h2,x2,p2.y-h2+t2,x1,p1.y-h1+t1, odd?'#ff2d75':'#2fe6ff');
+  }
+  ctx.globalAlpha=1;
 }
 function renderSprite(img,worldW,scale,x,y,offX,offY,clipY,alpha){
   if(!(scale>0)) return;
@@ -580,14 +605,14 @@ function render(){
   drawSky();
   for(let n=0;n<drawDistance;n++){
     const s=segments[(base.index+n)%segments.length];
-    s.looped=s.index<base.index; s.fog=fog(n/drawDistance,fogDensity); s.clip=maxy;
+    s.looped=s.index<base.index; s.fog=fog(n/drawDistance,fogDensity); s.clip=maxy; s.vis=false;
     const cz=position-(s.looped?trackLength:0);
     project(s.p1,playerX*roadWidth-x,playerY+cameraHeight,cz);
     project(s.p2,playerX*roadWidth-x-dx,playerY+cameraHeight,cz);
     x+=dx; dx+=s.curve;
     if(s.p1.camera.z<=cameraDepth || s.p2.screen.y>=s.p1.screen.y || s.p2.screen.y>=maxy) continue;
     renderSegment(s.p1.screen.x,s.p1.screen.y,s.p1.screen.w,s.p2.screen.x,s.p2.screen.y,s.p2.screen.w,s.fog,s.color,s.index);
-    maxy=s.p1.screen.y;
+    s.vis=true; maxy=s.p1.screen.y;
   }
   const showPlayer = state!=='menu';
   for(let n=drawDistance-1;n>0;n--){
@@ -595,8 +620,9 @@ function render(){
     if(s.p1.camera.z<=cameraDepth) { if(s===pseg && showPlayer) renderPlayer(pseg,pPct); continue; }
     const sc=s.p1.screen.scale, a=Math.min(1,s.fog*1.6);
     for(const sp of s.sprites){ const src=sp.source; const sx=s.p1.screen.x+sc*sp.offset*roadWidth*W/2;
-      const ox = (src===SPR.tree||src.w<=300||SPR.boards.includes(src)) ? -0.5 : (sp.offset<0?-1:0);
+      const ox = (src===SPR.tree||src.w<=300) ? -0.5 : (sp.offset<0?-1:0);
       renderSprite(src.img,src.w,sc,sx,s.p1.screen.y,ox,-1,s.clip,a); }
+    if(s.vis) renderWalls(s,a);
     if(s.arch) renderSprite(SPR.arch.img,SPR.arch.w,sc,s.p1.screen.x,s.p1.screen.y,-0.5,-1,s.clip,a);
     if(s.gate && s.gate.tex && state!=='menu') for(let i=0;i<3;i++){ renderSprite(s.gate.tex[i],GATE_W,sc,s.p1.screen.x+sc*LANE_X[i]*roadWidth*W/2,s.p1.screen.y,-0.5,-1,s.clip,a); }
     for(const car of s.cars){ const p=pctRem(car.z,segmentLength); const c2=lerp(s.p1.screen.scale,s.p2.screen.scale,p);
@@ -744,5 +770,5 @@ if('serviceWorker' in navigator && (location.protocol==='https:' || location.hos
 
 // Test ilgaklari FAQAT lokal ishlab chiqish muhitida (file://, localhost). Saytda (github.io) mavjud emas.
 const LOCAL_DEV = location.protocol==='file:' || location.hostname==='localhost' || location.hostname==='127.0.0.1';
-if(LOCAL_DEV){ window.EduRace={get state(){return state;}, get place(){return playerPlace;}, get stats(){return stats;}, jumpToEnd(){ posAbs=startAbs+LAPS*trackLength-playerZ-segmentLength*30; }, nextGate(d){ const g=gates[gp]; posAbs=lapBase+g.seg*segmentLength-playerZ-segmentLength*(d||120); return g.q; }, setX(x){playerX=x;}, curQ(){ return gates[gp]&&gates[gp].q; }, steerTo(t){ keys.left = playerX>t+0.08; keys.right = playerX<t-0.08; }}; }
+if(LOCAL_DEV){ window.EduRace={get state(){return state;}, get place(){return playerPlace;}, get stats(){return stats;}, jumpToEnd(){ posAbs=startAbs+LAPS*trackLength-playerZ-segmentLength*30; }, nextGate(d){ const g=gates[gp]; posAbs=lapBase+g.seg*segmentLength-playerZ-segmentLength*(d||120); return g.q; }, setX(x){playerX=x;}, get x(){return playerX;}, seek(seg){ posAbs=seg*segmentLength-playerZ; }, curQ(){ return gates[gp]&&gates[gp].q; }, steerTo(t){ keys.left = playerX>t+0.08; keys.right = playerX<t-0.08; }}; }
 })();
