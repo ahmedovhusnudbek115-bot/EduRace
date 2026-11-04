@@ -7,6 +7,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#07051a">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="Edu Race — oʻquvchilar uchun taʼlimiy poyga oʻyini: matematika, ingliz va rus tili, fizika, kimyo, tarix, geografiya.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -38,7 +39,9 @@
   </div>
   <div id="speedo"><b id="hSpeed">0</b><small>km/soat</small><div id="nitrow"><div id="nitro"></div></div><div id="streak"></div></div>
   <div id="toast"></div>
+  <div id="achToast" class="hidden"></div>
   <div id="count"></div>
+  <div id="raceMap"><div id="raceMapLine"></div></div>
   <div id="ctl">
     <div class="lr"><button class="tbtn" id="btnL" aria-label="Chapga">◀</button><button class="tbtn" id="btnR" aria-label="Oʻngga">▶</button></div>
     <button class="tbtn" id="btnBrake">TOR-<br>MOZ</button>
@@ -48,17 +51,29 @@
 
 <!-- MAIN MENU -->
 <div id="menu" class="screen hidden">
-  <div class="coinbar">🪙 <span id="mCoins">0</span></div>
-  <div class="card">
+  <div class="topbar"><span class="pill" id="mStars">⭐ 0</span><span class="pill coin">🪙 <span id="mCoins">0</span></span></div>
+  <div class="card menu-card">
     <h1 class="logo">EDU RACE</h1>
     <p class="tag">Oʻqi · Poygada yut · Chempion boʻl</p>
-    <h3>Fanni tanlang</h3>
+    <div id="quizBanner" class="banner hidden">
+      <div><b>📋 Oʻqituvchi testi:</b> <span id="qbTitle"></span> <small id="qbCount"></small></div>
+      <div class="banner-btns"><button class="btn mini primary" id="btnQuizStart">▶ Boshlash</button><button class="btn mini" id="btnQuizClose" aria-label="Yopish">✕</button></div>
+    </div>
+    <h3>Trassa</h3>
+    <div class="tracks" id="tracks"></div>
+    <h3>Fan</h3>
     <div class="grid g4" id="subjects"></div>
     <h3>Sinf</h3>
     <div class="grid g3" id="levels"></div>
     <div class="row">
-      <button class="btn" id="btnGarage">🚗 Garaj</button>
       <button class="btn primary" id="btnStart">▶ POYGANI BOSHLASH</button>
+      <button class="btn daily" id="btnDaily">📅 Kunlik musobaqa<small id="dailyNote"></small></button>
+    </div>
+    <div class="row icons">
+      <button class="btn" id="btnGarage">🚗 Garaj</button>
+      <button class="btn" id="btnProfile">🏆 Profil</button>
+      <button class="btn" id="btnTeacher">👩‍🏫 Oʻqituvchi</button>
+      <button class="btn" id="btnSettings">⚙️ Sozlamalar</button>
     </div>
     <div class="small-note">Toʻgʻri javob darvozasidan oʻtsangiz — nitro va tanga. Xato javob — tezlik pasayadi.</div>
     <div class="plink-row"><a href="privacy.html" class="plink">🔒 Maxfiylik siyosati</a></div>
@@ -67,12 +82,86 @@
 
 <!-- GARAGE -->
 <div id="garage" class="screen hidden">
-  <div class="coinbar">🪙 <span id="gCoins">0</span></div>
+  <div class="topbar"><span class="pill coin">🪙 <span id="gCoins">0</span></span></div>
   <div class="card">
     <h1 class="logo logo-md">GARAJ</h1>
     <p class="tag">Bilim bilan yigʻilgan tangalarga yangi mashina oling</p>
     <div class="carlist" id="carlist"></div>
     <div class="row"><button class="btn" id="btnGBack">◀ Orqaga</button></div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="profile" class="screen hidden">
+  <div class="card">
+    <h1 class="logo logo-md">PROFIL</h1>
+    <p class="tag">Sizning yutuqlaringiz va oʻsishingiz</p>
+    <div class="stats" id="pStats"></div>
+    <h3>Fanlar boʻyicha aniqlik</h3>
+    <div id="pSubjects" class="subjbars"></div>
+    <h3>Trassa rekordlari</h3>
+    <div id="pTracks" class="records"></div>
+    <h3>Yutuqlar <small id="pAchCount"></small></h3>
+    <div id="pAch" class="achgrid"></div>
+    <div class="row"><button class="btn" id="btnPBack">◀ Orqaga</button></div>
+  </div>
+</div>
+
+<!-- TEACHER -->
+<div id="teacher" class="screen hidden">
+  <div class="card">
+    <h1 class="logo logo-md">OʻQITUVCHI</h1>
+    <p class="tag">Oʻz savollaringizni yozing — havola orqali sinfga yuboring</p>
+    <label class="field">Test nomi<input id="tTitle" type="text" maxlength="40" placeholder="Masalan: 7-sinf. Kasrlar" autocomplete="off"></label>
+    <div class="trow thead"><span>Savol</span><span>✅ Toʻgʻri javob</span><span>❌ Xato 1</span><span>❌ Xato 2</span><span></span></div>
+    <div id="tRows"></div>
+    <div class="row tbtns">
+      <button class="btn" id="btnTAdd">➕ Savol qoʻshish</button>
+      <button class="btn" id="btnTSample">✨ Namuna</button>
+      <button class="btn" id="btnTClear">🗑 Tozalash</button>
+    </div>
+    <div id="tMsg" class="tmsg"></div>
+    <div id="tLinkBox" class="linkbox hidden">
+      <input id="tLink" type="text" readonly aria-label="Test havolasi">
+      <button class="btn mini primary" id="btnTCopy">📋 Nusxalash</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="btnTBack">◀ Orqaga</button>
+      <button class="btn" id="btnTTest">▶ Sinab koʻrish</button>
+      <button class="btn primary" id="btnTLink">🔗 Havola yaratish</button>
+    </div>
+    <div class="small-note show">Savollar faqat havolaning ichida saqlanadi — hech qanday serverga yuborilmaydi. 3–30 ta savol, javoblar 22 belgigacha.</div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settings" class="screen hidden">
+  <div class="card card-sm">
+    <h1 class="logo logo-sm">SOZLAMALAR</h1>
+    <div class="setlist">
+      <div class="setrow"><span>🎵 Musiqa</span><button class="btn mini" id="sMusic">Yoqilgan</button></div>
+      <div class="setrow"><span>🔊 Ovoz effektlari</span><button class="btn mini" id="sSfx">Yoqilgan</button></div>
+      <div class="setrow"><span>🖥 Grafika</span><div class="seg" id="sQuality"><button data-v="auto">Avto</button><button data-v="high">Yuqori</button><button data-v="low">Tejamkor</button></div></div>
+      <div class="setrow"><span>🎮 Boshqaruv</span><div class="seg" id="sSteer"><button data-v="buttons">Tugmalar</button><button data-v="tilt">Qiyshaytirish</button></div></div>
+      <div class="setrow"><span>📖 Qoʻllanma</span><button class="btn mini" id="sTutorial">Koʻrish</button></div>
+      <div class="setrow"><span>♻️ Progressni oʻchirish</span><button class="btn mini danger" id="sReset">Oʻchirish</button></div>
+    </div>
+    <div id="sMsg" class="tmsg"></div>
+    <div class="row"><button class="btn" id="btnSBack">◀ Orqaga</button></div>
+  </div>
+</div>
+
+<!-- TUTORIAL -->
+<div id="tutorial" class="screen hidden">
+  <div class="card card-sm tut">
+    <div class="tut-ic" id="tutIc">❓</div>
+    <h2 id="tutTitle"></h2>
+    <p id="tutText"></p>
+    <div class="dots" id="tutDots"><i></i><i></i><i></i><i></i></div>
+    <div class="row">
+      <button class="btn" id="btnTutSkip">Oʻtkazib yuborish</button>
+      <button class="btn primary" id="btnTutNext">Keyingi ▶</button>
+    </div>
   </div>
 </div>
 
@@ -101,15 +190,18 @@
       <div><b id="rTime">0:00</b><small>Vaqt</small></div>
       <div><b id="rCoins" class="yellow">+0</b><small>Tanga</small></div>
     </div>
+    <div id="rNews" class="news hidden"></div>
     <div class="mist hidden" id="rMist"></div>
     <div class="row">
       <button class="btn" id="btnRMenu">⌂ Menyu</button>
+      <button class="btn" id="btnRReview">📚 Xatolar ustida ishlash</button>
       <button class="btn primary" id="btnRAgain">↻ Yana poyga</button>
     </div>
   </div>
 </div>
 <div id="rotate" class="hidden">📱 Yaxshiroq oʻynash uchun telefonni yotqizing</div>
 
+<script src="questions.js" defer></script>
 <script src="game.js" defer></script>
 </body>
 </html>
