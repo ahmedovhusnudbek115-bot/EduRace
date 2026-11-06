@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "uz.edurace.game",
+        "sha256_cert_fingerprints": ["6F:D0:E3:3A:F5:30:8D:7D:B8:BC:9F:EF:EF:E5:7A:F8:63:87:0A:AA:F0:9D:1F:35:C3:F1:BB:08:F7:AA:4C:D4"]
+      }
+    }]
