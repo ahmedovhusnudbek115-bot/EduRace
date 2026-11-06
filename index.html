@@ -69,6 +69,7 @@
       <button class="btn primary" id="btnStart">▶ POYGANI BOSHLASH</button>
       <button class="btn daily" id="btnDaily">📅 Kunlik musobaqa<small id="dailyNote"></small></button>
     </div>
+    <button class="btn online" id="btnOnline">🌐 ONLAYN — butun Oʻzbekiston bilan bellashing<small id="onlineNote">Reyting · Viloyatlar bellashuvi · Doʻstlar bilan jonli poyga</small></button>
     <div class="row icons">
       <button class="btn" id="btnGarage">🚗 Garaj</button>
       <button class="btn" id="btnProfile">🏆 Profil</button>
@@ -134,6 +135,60 @@
   </div>
 </div>
 
+<!-- ONLINE -->
+<div id="online" class="screen hidden">
+  <div class="card">
+    <h1 class="logo logo-md">ONLAYN</h1>
+    <p class="tag">Butun Oʻzbekiston bilan bellashing</p>
+    <div id="netOff" class="banner warn hidden"><div>⚠️ <span id="netOffText">Server bilan bogʻlanib boʻlmadi.</span></div><div class="banner-btns"><button class="btn mini" id="btnNetRetry">↻ Qayta</button></div></div>
+    <div id="netReg" class="regbox hidden">
+      <h3>Onlayn profil yarating</h3>
+      <div class="regrow">
+        <label class="field">Laqab (3–16 belgi)<input id="nNick" type="text" maxlength="16" autocomplete="off" placeholder="Masalan: Tezkor Burgut"></label>
+        <button class="btn mini" id="btnNickRnd" aria-label="Tasodifiy laqab">🎲</button>
+        <label class="field">Viloyat<select id="nRegion"></select></label>
+      </div>
+      <div class="small-note show">Haqiqiy ism, telefon yoki email soʻralmaydi. Laqab va viloyat reytingda koʻrinadi.</div>
+      <div class="row"><button class="btn primary" id="btnNetSave">💾 Saqlash</button></div>
+      <div id="nMsg" class="tmsg"></div>
+    </div>
+    <div id="netMain" class="hidden">
+      <div class="mecard"><span>👤 <b id="nMeNick"></b> · <span id="nMeRegion"></span></span><span class="banner-btns"><button class="btn mini" id="btnNetEdit">✏️ Oʻzgartirish</button><button class="btn mini danger" id="btnNetDel" aria-label="Onlayn profilni oʻchirish">🗑</button></span></div>
+      <div class="seg tabs" id="nTabs"><button data-v="rank" class="on">🏆 Reyting</button><button data-v="friends">👥 Doʻstlar bilan</button></div>
+      <div id="nRank">
+        <div class="seg" id="nBoards"><button data-v="daily">☀️ Kunlik</button><button data-v="weekly" class="on">📅 Haftalik</button><button data-v="region">📍 Viloyatim</button><button data-v="regions">🗺️ Viloyatlar</button></div>
+        <div id="nBoardInfo" class="tmsg"></div>
+        <ol id="nBoard" class="board"></ol>
+        <div id="nMe" class="meline"></div>
+      </div>
+      <div id="nFriends" class="hidden">
+        <p class="tag left">Xona yarating va kodni doʻstlaringizga yuboring — 6 kishigacha bir vaqtda, bir xil savollar bilan poyga!</p>
+        <div class="row"><button class="btn primary" id="btnRoomCreate">➕ Xona yaratish</button></div>
+        <div class="joinrow"><input id="nCode" type="text" maxlength="4" autocomplete="off" placeholder="KOD" aria-label="Xona kodi"><button class="btn" id="btnRoomJoin">➡️ Qoʻshilish</button></div>
+        <div class="small-note show">Xona menyuda tanlangan trassa, fan va sinf bilan yaratiladi.</div>
+      </div>
+      <div id="nFMsg" class="tmsg"></div>
+    </div>
+    <div class="row"><button class="btn" id="btnNBack">◀ Orqaga</button></div>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby" class="screen hidden">
+  <div class="card card-md">
+    <p class="tag">Xona kodi</p>
+    <div class="roomcode" id="lCode">----</div>
+    <div class="linkbox"><input id="lLink" type="text" readonly aria-label="Xona havolasi"><button class="btn mini primary" id="btnLCopy">📋 Nusxalash</button></div>
+    <div class="lmeta" id="lMeta"></div>
+    <ul class="lplayers" id="lPlayers"></ul>
+    <div id="lMsg" class="tmsg"></div>
+    <div class="row">
+      <button class="btn" id="btnLLeave">🚪 Chiqish</button>
+      <button class="btn primary" id="btnLStart">▶ Poygani boshlash</button>
+    </div>
+  </div>
+</div>
+
 <!-- SETTINGS -->
 <div id="settings" class="screen hidden">
   <div class="card card-sm">
@@ -191,6 +246,7 @@
       <div><b id="rCoins" class="yellow">+0</b><small>Tanga</small></div>
     </div>
     <div id="rNews" class="news hidden"></div>
+    <ol id="rOnline" class="board compact hidden"></ol>
     <div class="mist hidden" id="rMist"></div>
     <div class="row">
       <button class="btn" id="btnRMenu">⌂ Menyu</button>
@@ -202,6 +258,7 @@
 <div id="rotate" class="hidden">📱 Yaxshiroq oʻynash uchun telefonni yotqizing</div>
 
 <script src="questions.js" defer></script>
+<script src="online.js" defer></script>
 <script src="game.js" defer></script>
 </body>
 </html>

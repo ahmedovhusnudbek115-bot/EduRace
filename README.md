@@ -15,6 +15,19 @@ Oʻquvchilar uchun taʼlimiy poyga oʻyini. Yoʻlda savol chiqadi: toʻgʻri jav
 - 🎵 Fayllarsiz synthwave musiqa · ✨ uchqunlar, poyga xaritasi, A/B/C darvozalar
 - 📴 Internetsiz ishlaydi · 🔒 maʼlumot yigʻmaydi, reklama yoʻq
 
+## 🌐 Onlayn rejim (v3)
+- **Respublika reytingi:** kunlik (kunlik musobaqa), haftalik, viloyat ichida
+- **Viloyatlar bellashuvi:** 14 ta hudud oʻquvchilari jami ball uchun kurashadi
+- **Doʻstlar bilan jonli poyga:** 4 belgili kod yoki havola, 2–6 oʻyinchi, bir xil savollar, server vaqti boʻyicha marra
+- Laqab + viloyat (haqiqiy ism soʻralmaydi), soʻkinish filtri, profilni oʻzi oʻchira oladi
+- Server: Vercel funksiyalari (`api/`) + Upstash Redis. Natijalar serverda tekshiriladi (bir martalik `raceId`, server vaqti, chegaralar), soʻrovlar cheklanadi, HMAC token
+
+### Deploy (Vercel)
+1. Vercel'da ushbu repozitoriyni import qiling (Framework: **Other**, build kerak emas).
+2. **Storage → Upstash for Redis** (bepul) yarating va loyihaga ulang — `KV_REST_API_URL` / `KV_REST_API_TOKEN` avtomatik qoʻshiladi.
+3. (Tavsiya) `EDURACE_SECRET` muhit oʻzgaruvchisiga uzun tasodifiy qator qoʻying.
+4. Redeploy.
+
 ## Xavfsizlik
 Qatʼiy CSP + Trusted Types, tashqi kutubxonalar yoʻq, barcha kiruvchi maʼlumot (saqlash, oʻqituvchi havolasi) qatʼiy tekshiriladi.
 Vercel'da qoʻshimcha HTTP sarlavhalar: HSTS, `frame-ancestors 'none'`, `nosniff`, `Permissions-Policy`, COOP/CORP — [vercel.json](vercel.json).
@@ -28,4 +41,6 @@ Batafsil: [SECURITY.md](SECURITY.md) · [Maxfiylik siyosati](privacy.html)
 | `questions.js` | Savol banklari, generatorlar, oʻqituvchi testi (kodlash/tekshirish) |
 | `style.css` | Dizayn |
 | `sw.js` | Oflayn rejim (service worker) |
+| `online.js` | Onlayn mijoz (API, profil) |
+| `api/*.js` | Server: player, race, leaderboard, room, health |
 | `vercel.json` | Vercel xavfsizlik sarlavhalari |

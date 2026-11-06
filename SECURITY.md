@@ -22,6 +22,16 @@ Faqat `main` tarmog'idagi eng so'nggi versiya (https://ahmedovhusnudbek115-bot.g
 - **Tashqi bog'liqliklar yo'q** (supply-chain xavfi yo'q), `Referrer-Policy: no-referrer`, faqat HTTPS (GitHub Pages).
 - **Maxfiy fayllar** (`*.keystore`, imzo parollari, `.env`) `.gitignore` orqali repozitoriyga tushishdan himoyalangan.
 
+## Onlayn server (api/)
+- **Identifikatsiya:** tasodifiy ID + HMAC-SHA256 token (server siri bilan); taqqoslash `timingSafeEqual` bilan.
+- **CSRF:** `Origin` sarlavhasi boshqa domendan boʻlsa — rad etiladi; faqat `application/json`, soʻrov hajmi ≤ 2 KB.
+- **Aldashga qarshi:** natija faqat server bergan bir martalik `raceId` bilan (GETDEL); server vaqti boʻyicha minimal davomiylik; toʻgʻri javoblar ≤ jami; oʻrin 1–6; ball chegarasi. Jonli poygada marra vaqti server tomonidan belgilanadi, juda erta marra qabul qilinmaydi.
+- **Soʻrovlar cheklovi:** IP (xeshlangan) va ID boʻyicha Redis hisoblagichlar.
+- **Maʼlumotlar minimal:** laqab + viloyat + ballar; IP saqlanmaydi; reytinglar ~30 kunda, xonalar 2 soatda oʻchadi; foydalanuvchi profilini oʻzi oʻchira oladi.
+- **Laqab filtri:** uzunlik, ruxsat etilgan belgilar, bidi/boshqaruv belgilari olib tashlanadi, soʻkinishlar roʻyxati.
+- **Ochiq reytingda ID koʻrsatilmaydi;** reyting CDN'da 15 soniya keshlanadi (DoS va xarajatni kamaytiradi).
+- **Maʼlum cheklov:** brauzer oʻyinida natijani toʻliq soxtalashtirishning oldini olib boʻlmaydi — server faqat mantiqan mumkin boʻlmagan natijalarni rad etadi.
+
 ## Vercel HTTP sarlavhalari
 `vercel.json` orqali: `Content-Security-Policy` (shu jumladan `frame-ancestors 'none'`), `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`,
 `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy` (faqat akselerometr/giroskop — qiyshaytirib boshqarish uchun),
