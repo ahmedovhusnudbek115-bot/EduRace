@@ -3,6 +3,18 @@
 (()=>{
 'use strict';
 const $ = id => document.getElementById(id);
+/* Domen qulfi: oʻyin faqat rasmiy manzilda ishlaydi (nusxa koʻchirilgan saytlarda toʻxtaydi). */
+const OFFICIAL = 'edurace-six.vercel.app';
+const OK_HOSTS = [OFFICIAL, 'ahmedovhusnudbek115-bot.github.io', 'localhost', '127.0.0.1'];
+if (location.protocol !== 'file:' && !OK_HOSTS.includes(location.hostname)) {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0b0f1a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font:600 18px system-ui;text-align:center;padding:24px';
+  const t1 = document.createElement('p'); t1.textContent = 'Bu Edu Race oʻyinining ruxsatsiz nusxasi.';
+  const t2 = document.createElement('p'); t2.textContent = 'Rasmiy oʻyin: https://' + OFFICIAL;
+  const t3 = document.createElement('p'); t3.textContent = '© Edu Race. Barcha huquqlar himoyalangan.'; t3.style.opacity = '.6';
+  box.append(t1, t2, t3); document.body.replaceChildren(box);
+  throw new Error('edurace: unofficial host');
+}
 const FONT = "'Segoe UI',Roboto,system-ui,sans-serif";
 const canvas = $('game'), ctx = canvas.getContext('2d');
 let W = 0, H = 0;

@@ -234,3 +234,4 @@ select{width:100%;padding:9px 10px;border-radius:10px;border:1px solid rgba(255,
 .lplayers li.empty{opacity:.35;justify-content:center}
 @media (max-height:460px){.btn.online{padding:9px;font-size:14px}.btn.online small{display:none}.roomcode{font-size:44px}.board{max-height:38vh}}
 .board li.erow{display:block}
+.plink-row.copy{opacity:.5;font-size:11px;margin-top:4px}
