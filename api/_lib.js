@@ -32,7 +32,8 @@ function send(res, code, obj, cache) {
 const fail = (res, code, msg) => send(res, code, { ok: false, error: msg });
 
 /* ---------- soʻrov himoyasi ---------- */
-function guard(req, res, methods) {
+function guard(req, res, methods, maxSize) {
+  const MAX = maxSize || 2048;
   if (!methods.includes(req.method)) { fail(res, 405, 'method'); return null; }
   const origin = req.headers.origin;
   if (origin) {
@@ -44,9 +45,9 @@ function guard(req, res, methods) {
     const ct = String(req.headers['content-type'] || '');
     if (!ct.includes('application/json')) { fail(res, 415, 'content-type'); return null; }
     let b = req.body;
-    if (typeof b === 'string') { if (b.length > 2048) { fail(res, 413, 'size'); return null; } try { b = JSON.parse(b); } catch (e) { fail(res, 400, 'json'); return null; } }
+    if (typeof b === 'string') { if (b.length > MAX) { fail(res, 413, 'size'); return null; } try { b = JSON.parse(b); } catch (e) { fail(res, 400, 'json'); return null; } }
     if (!b || typeof b !== 'object' || Array.isArray(b)) { fail(res, 400, 'body'); return null; }
-    if (JSON.stringify(b).length > 2048) { fail(res, 413, 'size'); return null; }
+    if (JSON.stringify(b).length > MAX) { fail(res, 413, 'size'); return null; }
     return b;
   }
   return {};
@@ -65,17 +66,55 @@ async function rateLimit(key, limit, windowSec) {
 /* ---------- identifikatsiya ---------- */
 const ID_RE = /^[a-z2-7]{12}$/;
 function newId(n) { const al = 'abcdefghijklmnopqrstuvwxyz234567'; const b = crypto.randomBytes(n || 12); let s = ''; for (const x of b) s += al[x & 31]; return s; }
-function tokenFor(id) { return crypto.createHmac('sha256', SECRET).update('player|' + id).digest('hex').slice(0, 40); }
+// Token: "<versiya>.<HMAC>" — parol almashtirilsa versiya oshadi va eski tokenlar bekor boʻladi.
+const TOKEN_RE = /^\d{1,6}\.[0-9a-f]{40}$/;
+function tokenFor(id, v) { v = v || 0; return v + '.' + crypto.createHmac('sha256', SECRET).update('acct|' + id + '|' + v).digest('hex').slice(0, 40); }
+function tokenVer(token) { return Number(String(token).split('.')[0]); }
 function verify(id, token) {
-  if (typeof id !== 'string' || !ID_RE.test(id) || typeof token !== 'string' || !/^[0-9a-f]{40}$/.test(token)) return false;
-  const a = Buffer.from(tokenFor(id)), b = Buffer.from(token);
+  if (typeof id !== 'string' || !ID_RE.test(id) || typeof token !== 'string' || !TOKEN_RE.test(token)) return false;
+  const a = Buffer.from(tokenFor(id, tokenVer(token))), b = Buffer.from(token);
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
-
+/* ---------- akkaunt ---------- */
+const ACCT_F = ['u', 'v', 'nick', 'region', 'grade', 'rating', 'games', 'wins', 'xp', 'created'];
+function acctObj(id, arr) {
+  if (!arr || arr[0] === null || arr[0] === undefined) return null;
+  const o = {}; ACCT_F.forEach((k, i) => { o[k] = arr[i]; });
+  return { id, username: o.u, v: Number(o.v) || 0, nick: o.nick || '—', region: REGIONS[o.region] ? o.region : 'tsh', grade: Number(o.grade) || 7,
+    rating: Math.round(Number(o.rating) || 1000), games: Number(o.games) || 0, wins: Number(o.wins) || 0, xp: Number(o.xp) || 0, created: Number(o.created) || 0 };
+}
+// Tokenni tekshiradi va akkauntni oʻqiydi (versiya mos kelishi shart). extra — shu pipeline'ga qoʻshiladigan buyruqlar.
+async function auth(b, extra) {
+  if (!b || !verify(b.id, b.token)) return null;
+  const out = await redis([['HMGET', 'ac:' + b.id, ...ACCT_F], ...(extra || [])]);
+  const a = acctObj(b.id, out[0]); if (!a || a.v !== tokenVer(b.token)) return null;
+  a.extra = out.slice(1); return a;
+}
+const LEAGUES = [[0, 'bronza', 'Bronza', '🥉'], [1100, 'kumush', 'Kumush', '🥈'], [1250, 'oltin', 'Oltin', '🥇'], [1400, 'platina', 'Platina', '💠'], [1550, 'olmos', 'Olmos', '💎'], [1700, 'chempion', 'Chempion', '👑']];
+function league(r) { let l = LEAGUES[0]; for (const x of LEAGUES) if (r >= x[0]) l = x; return { id: l[1], name: l[2], ic: l[3] }; }
+const levelOf = xp => Math.floor(Math.sqrt(Math.max(0, xp) / 120)) + 1;
+function profile(a, rank) { return { id: a.id, username: a.username, nick: a.nick, region: a.region, grade: a.grade, rating: a.rating, league: league(a.rating), games: a.games, wins: a.wins, xp: a.xp, level: levelOf(a.xp), rank: rank || null }; }
+const scryptP = (pw, salt) => new Promise((ok, no) => crypto.scrypt(pw, salt, 32, { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (e, k) => e ? no(e) : ok(k)));
+async function hashPw(pw, saltHex) { const salt = saltHex || crypto.randomBytes(16).toString('hex'); const k = await scryptP(pw.normalize('NFKC'), salt); return { salt, hash: k.toString('hex') }; }
+async function checkPw(pw, saltHex, hashHex) {
+  if (typeof saltHex !== 'string' || typeof hashHex !== 'string' || hashHex.length !== 64) { await hashPw('x'); return false; } // vaqt boʻyicha farq qilmasligi uchun
+  const { hash } = await hashPw(pw, saltHex); const a = Buffer.from(hash, 'hex'), b = Buffer.from(hashHex, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+const USER_RE = /^[a-z0-9_]{3,20}$/;
+function cleanUser(s) {
+  if (typeof s !== 'string') return null; const u = s.trim().toLowerCase();
+  if (!USER_RE.test(u) || /^\d+$/.test(u)) return null;
+  if (PROFANITY.some(w => u.includes(w))) return null;
+  if (['admin', 'administrator', 'edurace', 'moderator', 'support', 'root', 'system'].includes(u)) return null;
+  return u;
+}
+function cleanPw(s, user) { if (typeof s !== 'string' || s.length < 6 || s.length > 64) return null; if (/[\u0000-\u001F]/.test(s)) return null; if (user && s.toLowerCase() === user) return null; if (/^(.)\1+$/.test(s) || ['123456', '1234567', '12345678', 'qwerty', 'password', '111111', 'parol123'].includes(s.toLowerCase())) return null; return s; }
 /* ---------- validatsiya ---------- */
 const REGIONS = { tsh: 'Toshkent shahri', tsv: 'Toshkent viloyati', and: 'Andijon', bux: 'Buxoro', fer: 'Fargʻona', jiz: 'Jizzax', xor: 'Xorazm', nam: 'Namangan', nav: 'Navoiy', qash: 'Qashqadaryo', qq: 'Qoraqalpogʻiston', sam: 'Samarqand', sir: 'Sirdaryo', sur: 'Surxondaryo' };
 const TRACKS = ['toshkent', 'samarqand', 'chorvoq', 'buxoro'];
-const SUBJECTS = ['math', 'eng', 'rus', 'fiz', 'kim', 'tarix', 'geo', 'mix'];
+const SUBJECTS = ['math', 'ona', 'eng', 'rus', 'bio', 'fiz', 'kim', 'tarix', 'geo', 'inf', 'mix'];
+const GRADES = [4, 5, 6, 7, 8, 9, 10, 11]; // 4 = boshlangʻich (1–4-sinf)
 const CARS = ['ilm1', 'chaqmoq', 'burgut', 'zumrad', 'kometa', 'oq'];
 const BAD = /[\u0000-\u001F\u007F-\u009F​-‏‪-‮⁠-⁤⁦-⁩﻿]/g;
 const PROFANITY = ['jalab', 'qotoq', 'dalbayob', 'haromi', 'sikay', 'sikish', 'sikib', 'onangni', 'хуй', 'пизд', 'бля', 'ебат', 'ебан', 'сука', 'мудак', 'пидор', 'гандон', 'fuck', 'shit', 'bitch', 'dick', 'pidor', 'blyat', 'suka', 'nigger', 'porn', 'sex'];
@@ -114,4 +153,4 @@ function wrap(handler) {
   };
 }
 
-module.exports = { redis, send, fail, guard, ipHash, rateLimit, newId, tokenFor, verify, ID_RE, REGIONS, TRACKS, SUBJECTS, CARS, cleanNick, isInt, isNum, dayKey, weekKey, pairs, hobj, parsePlayer, wrap };
+module.exports = { redis, send, fail, guard, ipHash, rateLimit, newId, tokenFor, tokenVer, verify, auth, acctObj, ACCT_F, profile, league, levelOf, hashPw, checkPw, cleanUser, cleanPw, ID_RE, REGIONS, TRACKS, SUBJECTS, GRADES, CARS, cleanNick, isInt, isNum, dayKey, weekKey, pairs, hobj, parsePlayer, wrap };

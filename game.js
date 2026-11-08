@@ -93,21 +93,36 @@ const ACH = [
   {id:'car', ic:'🚗', n:'Yangi mashina', d:'Garajdan mashina sotib oling'},
   {id:'tracks', ic:'🗺️', n:'Sayyoh', d:'Barcha trassalarni oching'},
   {id:'teacher', ic:'👩‍🏫', n:'Oʻqituvchi testi', d:'Oʻqituvchi testini yakunlang'},
-  {id:'daily', ic:'☀️', n:'Kunlik gʻolib', d:'Kunlik musobaqani yakunlang'}
+  {id:'daily', ic:'☀️', n:'Kunlik gʻolib', d:'Kunlik musobaqani yakunlang'},
+  {id:'online', ic:'🌐', n:'Onlayn jangchi', d:'Onlayn poygada qatnashing'},
+  {id:'owin', ic:'👑', n:'Oʻzbekiston chempioni', d:'Onlayn poygada 1-oʻrin'},
+  {id:'mini', ic:'🎮', n:'Oʻyinqaroq', d:'Mini oʻyin oʻynang'},
+  {id:'missions', ic:'📋', n:'Intizomli', d:'Bir kunda barcha vazifalarni bajaring'}
 ];
+/* Kunlik vazifalar: har kuni sanadan kelib chiqib 3 ta tanlanadi */
+const MISSIONS = [
+  {id:'race2', ic:'🏁', t:'2 ta poyga yakunlang', k:'races', n:2, r:60},
+  {id:'race4', ic:'🏁', t:'4 ta poyga yakunlang', k:'races', n:4, r:120},
+  {id:'cor20', ic:'✅', t:'20 ta toʻgʻri javob bering', k:'correct', n:20, r:80},
+  {id:'cor50', ic:'✅', t:'50 ta toʻgʻri javob bering', k:'correct', n:50, r:150},
+  {id:'win1', ic:'🥇', t:'Poygada 1-oʻrinni oling', k:'wins', n:1, r:80},
+  {id:'mini2', ic:'🎮', t:'2 ta mini oʻyin oʻynang', k:'mini', n:2, r:70},
+  {id:'online1', ic:'🌐', t:'Onlayn poygada qatnashing', k:'online', n:1, r:100},
+  {id:'daily1', ic:'📅', t:'Kunlik musobaqani yakunlang', k:'daily', n:1, r:90}
+];
+const MISSION_KEYS=['races','correct','wins','mini','online','daily'];
 const ACH_IDS = ACH.map(a=>a.id);
-const LEVELS=[[1,'1–4-sinf','Boshlangʻich'],[2,'5–9-sinf','Oʻrta'],[3,'10–11-sinf','Yuqori']];
 
 /* ================= saqlash (qatʼiy sxema) ================= */
 const SAVE_KEY='eduRace.v1', DRAFT_KEY='eduRace.quiz', MIST_KEY='eduRace.mist';
-function defaults(){ return {coins:0, owned:['ilm1'], car:'ilm1', subject:'math', level:2, muted:false, music:true, quality:'auto', steer:'buttons', track:'toshkent', tutorial:false,
-  races:0, wins:0, correct:0, answered:0, subj:{}, stars:{}, best:{}, ach:[], day:'', streak:0, dailyDone:''}; }
+function defaults(){ return {coins:0, owned:['ilm1'], car:'ilm1', subject:'math', grade:7, muted:false, music:true, quality:'auto', steer:'buttons', track:'toshkent', tutorial:false,
+  races:0, wins:0, correct:0, answered:0, subj:{}, stars:{}, best:{}, ach:[], day:'', streak:0, dailyDone:'', mini:{}, mDay:'', mProg:{}, mClaim:[], cts:0}; }
 // Nomaʼlum kalitlar (masalan __proto__) koʻchirilmaydi; har bir maydon turi va chegarasi tekshiriladi.
-function loadSave(){
+function loadSave(src){
   const d=defaults();
   let raw=null;
-  const s=store.get(SAVE_KEY);
-  if(typeof s==='string' && s.length<=16384){ try{ raw=JSON.parse(s); }catch(e){ raw=null; } }
+  if(src && typeof src==='object') raw=src;
+  else { const s=store.get(SAVE_KEY); if(typeof s==='string' && s.length<=16384){ try{ raw=JSON.parse(s); }catch(e){ raw=null; } } }
   if(!raw || typeof raw!=='object' || Array.isArray(raw)) return d;
   const has=k=>Object.prototype.hasOwnProperty.call(raw,k);
   const int=(v,min,max,def)=>(Number.isSafeInteger(v) && v>=min && v<=max) ? v : def;
@@ -117,7 +132,7 @@ function loadSave(){
   const ids=CARS.map(c=>c.id);
   d.coins=I('coins',0,1e7,0); d.races=I('races',0,1e7,0); d.wins=Math.min(I('wins',0,1e7,0),d.races);
   d.correct=I('correct',0,1e8,0); d.answered=Math.max(I('answered',0,1e8,0),d.correct);
-  d.level=I('level',1,3,2);
+  d.grade = has('grade') ? I('grade',4,11,7) : (EduQ.LEGACY_LEVEL[I('level',1,3,2)]||7);
   d.subject=has('subject')&&raw.subject==='know' ? 'tarix' : oneOf('subject',EduQ.SUBJECT_IDS,'math');
   d.muted=has('muted') && raw.muted===true;
   d.music=!(has('music') && raw.music===false);
@@ -135,10 +150,15 @@ function loadSave(){
   d.day=has('day')&&dateOk(raw.day)?raw.day:''; d.dailyDone=has('dailyDone')&&dateOk(raw.dailyDone)?raw.dailyDone:'';
   d.streak=I('streak',0,100000,0);
   d.track=oneOf('track',THEME_IDS,'toshkent');
+  if(has('mini') && isObj(raw.mini)) for(const k of ['calc','tf','pairs']){ const v=Object.prototype.hasOwnProperty.call(raw.mini,k)?raw.mini[k]:null; const n=int(v,0,1e6,0); if(n) d.mini[k]=n; }
+  d.mDay=has('mDay')&&dateOk(raw.mDay)?raw.mDay:'';
+  if(has('mProg') && isObj(raw.mProg)) for(const k of MISSION_KEYS){ const v=Object.prototype.hasOwnProperty.call(raw.mProg,k)?raw.mProg[k]:null; const n=int(v,0,1e5,0); if(n) d.mProg[k]=n; }
+  if(has('mClaim') && Array.isArray(raw.mClaim) && raw.mClaim.length<=MISSIONS.length+1) d.mClaim=[...new Set(raw.mClaim.filter(x=>typeof x==='string' && (x==='all' || MISSIONS.some(m=>m.id===x))))];
+  d.cts=I('cts',0,1e14,0);
   return d;
 }
 let save = loadSave();
-function persist(){ store.set(SAVE_KEY, JSON.stringify(save)); }
+function persist(){ store.set(SAVE_KEY, JSON.stringify(save)); cloudSoon(); }
 function totalStars(){ return THEME_IDS.reduce((s,id)=>s+(save.stars[id]||0),0); }
 function isUnlocked(t){ return totalStars()>=t.need; }
 if(!isUnlocked(THEMES.find(t=>t.id===save.track))) save.track='toshkent';
@@ -500,7 +520,7 @@ const Tilt={active:false, raw:0, offset:0, value:0, bound:false,
 /* ================= oʻyin holati ================= */
 let state='menu';            // menu | countdown | race | finish | paused | results
 let prevState='race', mode='normal', activeQuiz=null, raceTheme=THEMES[0], raceSubject='math', raceLevel=2;
-let netRaceId=null, raceSerial=0, curRoom=null, syncTimer=null, lobbyTimer=null, syncBusy=false, onlineEndAt=0, onlinePaused=false;
+let soloFallback=false, netRaceId=null, raceSerial=0, curRoom=null, syncTimer=null, lobbyTimer=null, syncBusy=false, onlineEndAt=0, onlinePaused=false;
 let position=0, posAbs=0, playerX=0, speed=0, steerVis=0, nitro=0, shake=0, skyX=0, scrapeT=0;
 let cars=[], startAbs=0, gp=0, lapBase=0, raceTime=0, countdown=0, lastCount=0, finishTimer=0;
 let stats={}, finishedOrder=[], playerPlace=6, myCar=null, toastTimer=0, attractT=0, achTimer=0;
@@ -595,7 +615,7 @@ function startRace(m, room){
   Sound.init();
   mode=m||'normal';
   const today=dayStr(); raceSerial++; netRaceId=null; onlinePaused=false;
-  raceSubject=save.subject; raceLevel=save.level;
+  raceSubject=save.subject; raceLevel=save.grade; if(!EduQ.available(raceSubject,raceLevel)) raceSubject='mix';
   if(mode==='daily'){ const hsh=EduQ.hashStr('edurace-'+today); EduQ.seed(hsh); raceTheme=THEMES[hsh%THEMES.length]; raceSubject='mix'; }
   else if(mode==='online' && room){ EduQ.seed(room.seed>>>0); raceTheme=THEMES.find(t=>t.id===room.track)||THEMES[0]; raceSubject=room.subject; raceLevel=room.level; }
   else { EduQ.unseed(); raceTheme=THEMES.find(t=>t.id===save.track)||THEMES[0]; if(mode==='online') mode='normal'; }
@@ -628,7 +648,7 @@ function resolveGate(g){
   const lane=nearestLane(playerX), ok=lane===g.q.ans;
   stats.total++;
   const sid=subjOf(g.q); if(sid){ const r=stats.subj[sid]||(stats.subj[sid]={a:0,c:0}); r.a++; if(ok) r.c++; }
-  const val=[0,10,15,20][save.level]||10;
+  const val=raceLevel<=4?10:raceLevel<=9?15:20;
   const row=[g.q.q, g.q.correct, ...g.q.opts.filter(o=>o!==g.q.correct)];
   if(ok){
     stats.correct++; stats.streak++; stats.bestStreak=Math.max(stats.bestStreak,stats.streak);
@@ -886,7 +906,7 @@ function updateHUD(){
     const gAbs=lapBase+g.seg*segmentLength, dSeg=(gAbs-pAbs)/segmentLength;
     const visible=dSeg<SHOW_SEGS && (gAbs-startAbs)<LAPS*trackLength;
     if(visible){
-      if(lastQ!==g.q){ lastQ=g.q; $('qsub').textContent=g.q.sub; $('qtext').textContent=g.q.q; const o=document.querySelectorAll('.opt'); g.q.opts.forEach((t,i)=>o[i].textContent=LETTERS[i]+' · '+t); $('qbox').classList.remove('dim'); }
+      if(lastQ!==g.q){ lastQ=g.q; $('qsub').textContent=g.q.sub; $('qtext').textContent=g.q.q; const o=document.querySelectorAll('.opt'); g.q.opts.forEach((t,i)=>{ o[i].textContent=LETTERS[i]+' · '+t; o[i].classList.toggle('long',t.length>11); }); $('qbox').classList.remove('dim'); }
       $('qbar').style.transform=`scaleX(${limit(dSeg/SHOW_SEGS,0,1)})`;
     } else if(lastQ!=='wait'){ lastQ='wait'; $('qsub').textContent='Keyingi savol'; $('qtext').textContent=(gAbs-startAbs)>=LAPS*trackLength?'Marraga!':'…'; document.querySelectorAll('.opt').forEach(o=>o.textContent='—'); $('qbox').classList.add('dim'); $('qbar').style.transform='scaleX(0)'; }
   } else if(state==='finish' && lastQ!=='fin'){ lastQ='fin'; $('qsub').textContent='Poyga tugadi'; $('qtext').textContent='Marra! 🏁'; $('qbox').classList.add('dim'); }
@@ -898,8 +918,9 @@ function unlockAch(id){ if(save.ach.includes(id)) return false; save.ach.push(id
 function showNextAch(){ const id=achQueue.shift(); if(!id) return; const a=ACH.find(x=>x.id===id); const t=$('achToast'); t.replaceChildren(`🏆 Yutuq: ${a.ic} ${a.n}`, h('small',{text:a.d})); t.classList.remove('hidden'); achTimer=2.6; if(state!=='results') Sound.coin(); }
 
 /* ================= ekranlar ================= */
-const SCREENS=['menu','garage','pause','results','profile','teacher','settings','tutorial','online','lobby'];
-function showScreen(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden',s!==id)); }
+const SCREENS=['menu','garage','pause','results','profile','teacher','settings','tutorial','online','lobby','account','missions','mini','minigame'];
+function showScreen(id){ SCREENS.forEach(s=>$(s).classList.toggle('hidden',s!==id)); setTimeout(rotHint,0); }
+function rotHint(){ $('rotate').classList.toggle('hidden',!(innerHeight>innerWidth && ('ontouchstart' in window) && !$('hud').classList.contains('hidden'))); }
 function showResults(){
   state='results'; Music.stop();
   const place=playerPlace, bonus=[100,60,40,20,10,5][place-1]||0, today=dayStr();
@@ -926,9 +947,12 @@ function showResults(){
   if(save.streak>=3) unlockAch('s3'); if(save.streak>=7) unlockAch('s7');
   if(THEMES.every(isUnlocked)) unlockAch('tracks');
   if(mode==='quiz') unlockAch('teacher');
+  missionAdd('races',1); missionAdd('correct',stats.correct); if(place===1) missionAdd('wins',1); if(mode==='daily') missionAdd('daily',1);
+  if(mode==='online'){ missionAdd('online',1); unlockAch('online'); }
+  persist();
   if(netRaceId && (mode==='normal'||mode==='daily')){ const rid=netRaceId; netRaceId=null;
     EduNet.finishRace(rid,{correct:stats.correct,total:stats.total,time:stats.time||raceTime,place}).then(r=>{
-      const lines=[`🌐 +${r.points} ball · Haftalik reyting: #${r.week.rank} / ${r.week.total}`, `📍 ${EduNet.RMAP[r.region]}: #${r.inRegion} · viloyatingiz ${r.regionPos}-oʻrinda`];
+      const lines=[`🌐 +${r.points} ball · +${r.xp||0} XP · Haftalik reyting: #${r.week.rank} / ${r.week.total}`, `📍 ${EduNet.RMAP[r.region]}: #${r.inRegion} · viloyatingiz ${r.regionPos}-oʻrinda`];
       if(r.day) lines.unshift(`☀️ Kunlik musobaqa: #${r.day.rank} / ${r.day.total}`);
       const nb=$('rNews'); nb.append(...lines.map(t=>h('div',{text:t}))); nb.classList.remove('hidden');
     }).catch(()=>{}); }
@@ -938,30 +962,37 @@ function showResults(){
   $('rSub').textContent = place===1 ? 'Ajoyib! Siz chempionsiz!' : acc>=80 ? 'Bilimingiz zoʻr — endi tezroq haydang!' : 'Yana mashq qiling — har toʻgʻri javob nitro beradi!';
   $('rCorrect').textContent=`${stats.correct}/${stats.total}`; $('rAcc').textContent=acc+'%'; $('rTime').textContent=fmtTime(stats.time||raceTime);
   $('rCoins').textContent=`+${earned}`;
+  if(soloFallback){ soloFallback=false; news.push('🤖 Raqib topilmadi — botlar bilan mashq poygasi (reytingga taʼsir qilmaydi).'); }
   const nb=$('rNews'); nb.replaceChildren(...news.map(t=>h('div',{text:t}))); nb.classList.toggle('hidden',!news.length);
   const m=$('rMist');
   if(stats.mistakes.length && mode!=='online'){ m.classList.remove('hidden'); m.replaceChildren(h('div',{class:'mhead',text:'📚 Xatolar ustida ishlaymiz:'}), ...stats.mistakes.slice(0,6).map(x=>h('div',null,x.q+' → ',h('b',{text:x.a})))); }
   else m.classList.add('hidden');
   $('btnRReview').classList.toggle('hidden', mistakes.length===0 || mode==='online');
   $('rOnline').classList.toggle('hidden', mode!=='online');
-  $('btnRAgain').textContent = mode==='online' ? '👥 Yangi xona' : '↻ Yana poyga';
-  if(mode==='online'){ onlineEndAt=Date.now()+90000; renderOnlineResults(); }
+  $('btnRAgain').textContent = mode==='online' ? (curRoom&&curRoom.room&&curRoom.room.quick ? '⚡ Yana tezkor oʻyin' : '👥 Yangi xona') : '↻ Yana poyga';
+  if(mode==='online'){ onlineEndAt=Date.now()+90000; ratingShown=false; renderOnlineResults(); }
   $('btnRReview').textContent=`📚 Xatolar ustida ishlash (${mistakes.length})`;
   $('hud').classList.add('hidden'); showScreen('results');
 }
+let ratingShown=false;
 function renderOnlineResults(){
-  const rk=onlineRanks(); const ol=$('rOnline');
-  ol.replaceChildren(...rk.map((r,i)=>h('li',{class:r.me?'mine':''}, h('span',{class:'rk',text:['🥇','🥈','🥉'][i]||String(i+1)}), h('span',{class:'nm'},h('b',{text:r.nick}),h('small',{text: r.ft!==null ? '🏁 '+fmtTime(r.ft/1000) : (r.me?'marra…':'poygada… '+Math.round(limit(r.p,0,1)*100)+'%')})), h('span',{class:'pt',text:''}))));
+  const rk=onlineRanks(); const ol=$('rOnline'); const pl=(curRoom&&curRoom.room&&curRoom.room.players)||[]; const ranked=curRoom&&curRoom.room&&curRoom.room.ranked;
+  const rdOf=id=>{ const p=pl.find(x=>x.id===id); return p&&p.rd!==null&&p.rd!==undefined ? p.rd : null; };
+  ol.replaceChildren(...rk.map((r,i)=>{ const rd=ranked?rdOf(r.id):null; return h('li',{class:r.me?'mine':''}, h('span',{class:'rk',text:['🥇','🥈','🥉'][i]||String(i+1)}), h('span',{class:'nm'},h('b',{text:r.nick}),h('small',{text: r.ft!==null ? '🏁 '+fmtTime(r.ft/1000) : (r.me?'marra…':'poygada… '+Math.round(limit(r.p,0,1)*100)+'%')})), h('span',{class:'pt'+(rd>0?' up':rd<0?' down':''),text: rd===null?'':(rd>0?'+':'')+rd})); }));
+  const myRd=ranked&&EduNet.me?rdOf(EduNet.me.id):null;
+  if(myRd!==null && !ratingShown){ ratingShown=true; const nb=$('rNews'); nb.append(h('div',{text:`⭐ Reyting: ${myRd>=0?'+':''}${myRd} ball`})); nb.classList.remove('hidden'); EduNet.refresh().then(()=>buildMenu()).catch(()=>{}); }
   const myIdx=rk.findIndex(r=>r.me); const myFt=rk[myIdx]&&rk[myIdx].ft;
-  if(myFt!==null && myFt!==undefined){ const medal=['🥇','🥈','🥉'][myIdx]||'🏁'; $('rPlace').textContent=`${medal} ${myIdx+1}-oʻrin`; if(myIdx===0) unlockAch('win'); }
+  if(myFt!==null && myFt!==undefined){ const medal=['🥇','🥈','🥉'][myIdx]||'🏁'; $('rPlace').textContent=`${medal} ${myIdx+1}-oʻrin`; if(myIdx===0){ unlockAch('win'); if(rk.length>1) unlockAch('owin'); } }
 }
 function buildMenu(){
   const ts=totalStars();
   $('tracks').replaceChildren(...THEMES.map(t=>{ const un=isUnlocked(t);
     return h('button',{class:`trk trk-${t.id}`+(save.track===t.id?' on':'')+(un?'':' locked'),data:{t:t.id}, 'aria-label':t.name},
       h('span',{class:'ic',text:t.ic}), t.name, h('small',{text: un ? ('★'.repeat(save.stars[t.id]||0)+'☆'.repeat(3-(save.stars[t.id]||0))) : `🔒 ${t.need} ⭐ kerak`})); }));
-  $('subjects').replaceChildren(...EduQ.SUBJECTS.map(s=>h('button',{class:'choice'+(save.subject===s.id?' on':''),data:{s:s.id}},h('span',{class:'ic',text:s.ic}),s.name,h('small',{text:s.hint}))));
-  $('levels').replaceChildren(...LEVELS.map(l=>h('button',{class:'choice'+(save.level===l[0]?' on':''),data:{l:l[0]}},l[1],h('small',{text:l[2]}))));
+  $('grades').replaceChildren(...EduQ.GRADES.map(g=>h('button',{class:'gbtn'+(save.grade===g?' on':''),data:{g:String(g)},text:g<=4?'1–4':String(g)})));
+  $('subjects').replaceChildren(...EduQ.SUBJECTS.map(s=>{ const av=EduQ.available(s.id,save.grade); return h('button',{class:'choice'+(save.subject===s.id&&av?' on':'')+(av?'':' locked'),data:{s:s.id}},h('span',{class:'ic',text:s.ic}),s.name,h('small',{text:av?s.hint:`${s.min}-sinfdan`})); }));
+  const ms=missionState(), md=ms.filter(x=>x.done).length; $('mMissions').textContent=`${md}/3`+(ms.some(x=>x.done&&!x.claimed)?' 🎁':''); $('mMissBar').style.width=(md/3*100)+'%';
+  const me=EduNet.me; $('mAcct').textContent= me ? `${me.league.ic} ${me.nick} · ${me.rating}` : '👤 Kirish';
   $('mCoins').textContent=save.coins; $('mStars').textContent='⭐ '+ts;
   const done=save.dailyDone===dayStr(); $('dailyNote').textContent= done ? '✓ Bugun bajarildi' : 'Tangalar ×2 · bir xil savollar';
   const qb=$('quizBanner'); if(activeQuiz){ qb.classList.remove('hidden'); $('qbTitle').textContent=activeQuiz.t; $('qbCount').textContent=`(${activeQuiz.q.length} ta savol)`; } else qb.classList.add('hidden');
@@ -1045,45 +1076,64 @@ function renderTut(){ const t=TUT[tutI]; $('tutIc').textContent=t[0]; $('tutTitl
 function endTutorial(){ save.tutorial=true; persist(); if(tutBack==='settings'){ buildSettings(); showScreen('settings'); } else { buildMenu(); showScreen('menu'); } }
 
 /* ================= onlayn ekranlar ================= */
-let boardType='weekly', onlineTab='rank';
+/* ================= ONLAYN: akkaunt, reyting, tezkor oʻyin, xonalar ================= */
+let boardType='rating', onlineTab='rank', authTab='login';
 function regionName(id){ return EduNet.RMAP[id]||'—'; }
 function netMsg(id,t,cls){ const m=$(id); m.textContent=t||''; m.className='tmsg '+(cls||''); }
 function errText(e){ const c=e&&e.code, m=e&&e.message;
   if(c===0) return 'Internet aloqasini tekshiring.'; if(c===429) return 'Juda koʻp urinish — birozdan keyin qayta urinib koʻring.';
-  if(m==='nick') return 'Laqab mos emas: 3–16 ta harf/raqam, soʻkinishsiz.'; if(m==='room') return 'Bunday xona topilmadi yoki muddati tugagan.';
-  if(m==='full') return 'Xona toʻla (6 kishi).'; if(m==='started') return 'Bu xonada poyga allaqachon boshlangan.'; if(m==='players') return 'Boshlash uchun kamida 2 kishi kerak.';
-  if(c===503) return 'Server vaqtincha band. Keyinroq urinib koʻring.'; return 'Xatolik yuz berdi. Qayta urinib koʻring.'; }
+  const M={nick:'Laqab mos emas: 3–16 ta harf/raqam, soʻkinishsiz.', username:'Login mos emas: 3–20 ta lotin harfi, raqam yoki _ (faqat raqamdan iborat boʻlmasin).',
+    password:'Parol notoʻgʻri yoki juda oddiy (kamida 6 belgi, “123456” kabi boʻlmasin).', newpassword:'Yangi parol juda oddiy — kamida 6 belgi, login bilan bir xil boʻlmasin.',
+    taken:'Bu login band — boshqasini tanlang.', login:'Login yoki parol notoʻgʻri.', grade:'Sinfni tanlang.', region:'Viloyatni tanlang.', auth:'Seans tugagan — qaytadan kiring.',
+    room:'Bunday xona topilmadi yoki muddati tugagan.', full:'Xona toʻla (6 kishi).', started:'Bu xonada poyga allaqachon boshlangan.', players:'Boshlash uchun kamida 2 kishi kerak.', quick:'Bu tezkor oʻyin xonasi — kod bilan kirib boʻlmaydi.'};
+  if(M[m]) return M[m]; if(c===503) return 'Server vaqtincha band. Keyinroq urinib koʻring.'; return 'Xatolik yuz berdi. Qayta urinib koʻring.'; }
 function fillRegions(sel, val){ sel.replaceChildren(...EduNet.REGIONS.map(([id,n])=>{ const o=h('option',{value:id,text:n}); if(id===val) o.selected=true; return o; })); }
+function fillGrades(sel, val){ sel.replaceChildren(...EduQ.GRADES.map(g=>{ const o=h('option',{value:String(g),text:EduQ.gradeName(g)}); if(g===val) o.selected=true; return o; })); }
 async function openOnline(tab){
   showScreen('online'); if(tab) onlineTab=tab;
-  ['netOff','netReg','netMain'].forEach(id=>$(id).classList.add('hidden')); netMsg('nFMsg','');
+  ['netOff','netAuth','netMain'].forEach(id=>$(id).classList.add('hidden')); netMsg('nFMsg','');
   const av=await EduNet.check(true);
   if(!av){ $('netOff').classList.remove('hidden'); $('netOffText').textContent='Server bilan bogʻlanib boʻlmadi. Internetni tekshiring yoki oʻyinni rasmiy saytda oching.'; return; }
-  if(!EduNet.me){ showReg(); return; }
-  showNetMain();
+  if(!EduNet.me){ showAuth(); return; }
+  showNetMain(); EduNet.refresh().then(()=>{ if(!$('online').classList.contains('hidden')) fillMe(); buildMenu(); }).catch(e=>{ if(e.code===401){ showAuth(); netMsg('aMsg',errText({message:'auth'}),'err'); } });
 }
-function showReg(){ $('netReg').classList.remove('hidden'); $('netMain').classList.add('hidden'); const me=EduNet.me; $('nNick').value=me?me.nick:''; fillRegions($('nRegion'), me?me.region:'tsh'); netMsg('nMsg',''); }
+function showAuth(){
+  $('netAuth').classList.remove('hidden'); $('netMain').classList.add('hidden');
+  document.querySelectorAll('#aTabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===authTab));
+  $('fLogin').classList.toggle('hidden',authTab!=='login'); $('fReg').classList.toggle('hidden',authTab!=='register');
+  fillRegions($('rgRegion'),'tsh'); fillGrades($('rgGrade'),save.grade); if(!$('rgNick').value) $('rgNick').value=EduNet.suggest(); netMsg('aMsg','');
+}
+function fillMe(){
+  const me=EduNet.me; if(!me) return;
+  $('nLeague').textContent=me.league.ic; $('nLeague').title=me.league.name;
+  $('nMeNick').textContent=me.nick; $('nMeSub').textContent=`@${me.username} · ${regionName(me.region)} · ${EduQ.gradeName(me.grade)} · ${me.league.name} ligasi`;
+  const lo=EduNet.levelXp(me.level), hi=EduNet.levelXp(me.level+1); $('nXpBar').style.width=limit((me.xp-lo)/Math.max(1,hi-lo)*100,0,100)+'%';
+  const nl=EduNet.nextLeague(me.rating);
+  $('nXpText').textContent=`${me.level}-daraja · ${me.xp} XP` + (nl ? ` · ${nl.ic} ${nl.name} ligasigacha ${nl.at-me.rating} ball` : ' · eng yuqori liga!');
+  $('nRating').textContent=me.rating; $('nRank').textContent=me.rank?('#'+me.rank):'—'; $('nWins').textContent=me.wins;
+  $('quickNote').textContent=`${EduQ.nameOf(save.subject)} · ${EduQ.gradeName(save.grade)} · teng raqiblar · reytingli`;
+}
 function showNetMain(){
-  const me=EduNet.me; $('netReg').classList.add('hidden'); $('netMain').classList.remove('hidden');
-  $('nMeNick').textContent=me.nick; $('nMeRegion').textContent=regionName(me.region);
+  $('netAuth').classList.add('hidden'); $('netMain').classList.remove('hidden'); fillMe();
   document.querySelectorAll('#nTabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===onlineTab));
   $('nRank').classList.toggle('hidden',onlineTab!=='rank'); $('nFriends').classList.toggle('hidden',onlineTab!=='friends');
   if(onlineTab==='rank') loadBoard();
   if(pendingRoom && onlineTab==='friends'){ $('nCode').value=pendingRoom; const c=pendingRoom; pendingRoom=null; joinRoom(c); }
 }
-const BOARD_INFO={daily:'☀️ Bugungi kunlik musobaqa (savollar hamma uchun bir xil)', weekly:'📅 Shu haftadagi barcha poygalar yigʻindisi', region:'📍 Viloyatingizdagi eng kuchlilar (shu hafta)', regions:'🗺️ Viloyatlar bellashuvi — oʻquvchilar yigʻgan jami ballar'};
+async function afterAuth(){ authTab='login'; ['liPass','rgPass','rgPass2'].forEach(id=>$(id).value=''); await cloudPull(); showNetMain(); buildMenu(); }
+const BOARD_INFO={rating:'⭐ Elo reyting — tezkor oʻyindagi gʻalabalar boʻyicha (ligalar: Bronza → Chempion)', daily:'☀️ Bugungi kunlik musobaqa (savollar hamma uchun bir xil)', weekly:'📅 Shu haftadagi barcha poygalar yigʻindisi', region:'📍 Viloyatingizdagi eng kuchlilar (shu hafta)', regions:'🗺️ Viloyatlar bellashuvi — oʻquvchilar yigʻgan jami ballar'};
 async function loadBoard(){
   document.querySelectorAll('#nBoards button').forEach(b=>b.classList.toggle('on',b.dataset.v===boardType));
   netMsg('nBoardInfo',BOARD_INFO[boardType]); const ol=$('nBoard'); ol.replaceChildren(h('li',{class:'erow'},h('span',{class:'empty',text:'Yuklanmoqda…'}))); $('nMe').textContent='';
   try{
-    const j=await EduNet.leaderboard(boardType);
+    const j=await EduNet.leaderboard(boardType); const me=EduNet.me;
     if(!j.rows.length){ ol.replaceChildren(h('li',{class:'erow'},h('span',{class:'empty',text:'Hali natija yoʻq — birinchi boʻling! 🚀'}))); }
-    else ol.replaceChildren(...j.rows.map((r,i)=>{ const mine = boardType==='regions' ? (EduNet.me && r.region===EduNet.me.region) : (j.me && j.me.rank===i+1);
+    else ol.replaceChildren(...j.rows.map((r,i)=>{ const mine = boardType==='regions' ? (me && r.region===me.region) : (j.me && j.me.rank===i+1);
       return h('li',{class:mine?'mine':''}, h('span',{class:'rk',text:['🥇','🥈','🥉'][i]||String(i+1)}),
-        boardType==='regions' ? h('span',{class:'nm'},h('b',{text:r.name})) : h('span',{class:'nm'},h('b',{text:r.nick}),h('small',{text:regionName(r.region)})),
-        h('span',{class:'pt',text:Math.round(r.pts).toLocaleString('ru-RU')+' ball'})); }));
-    if(boardType==='regions'){ const i=j.rows.findIndex(r=>EduNet.me&&r.region===EduNet.me.region); $('nMe').textContent= i>=0 ? `📍 ${regionName(EduNet.me.region)} — ${i+1}-oʻrinda` : `📍 ${regionName(EduNet.me.region)} hali ball yigʻmagan — poyga oʻynang!`; }
-    else $('nMe').textContent = j.me ? `👤 Siz: #${j.me.rank} / ${j.total} · ${Math.round(j.me.pts)} ball` : '👤 Siz hali bu reytingda yoʻqsiz — poyga oʻynab ball yigʻing!';
+        boardType==='regions' ? h('span',{class:'nm'},h('b',{text:r.name})) : h('span',{class:'nm'},h('b',{text:(r.league?r.league.ic+' ':'')+r.nick}),h('small',{text:regionName(r.region)+(r.league?' · '+r.league.name:'')})),
+        h('span',{class:'pt',text:Math.round(r.pts).toLocaleString('ru-RU')+(boardType==='rating'?'':' ball')})); }));
+    if(boardType==='regions'){ const i=j.rows.findIndex(r=>me&&r.region===me.region); $('nMe').textContent= me ? (i>=0 ? `📍 ${regionName(me.region)} — ${i+1}-oʻrinda` : `📍 ${regionName(me.region)} hali ball yigʻmagan — poyga oʻynang!`) : ''; }
+    else $('nMe').textContent = j.me ? `👤 Siz: #${j.me.rank} / ${j.total} · ${Math.round(j.me.pts)}${boardType==='rating'?' reyting':' ball'}` : '👤 Siz hali bu reytingda yoʻqsiz — oʻynab ball yigʻing!';
   }catch(e){ ol.replaceChildren(h('li',{class:'erow'},h('span',{class:'empty',text:errText(e)}))); }
 }
 let pendingRoom=null;
@@ -1094,6 +1144,12 @@ async function joinRoom(code){
   netMsg('nFMsg','Ulanilmoqda…');
   try{ const j=await EduNet.room.join(code, save.car); enterLobby(code, j.room); }catch(e){ netMsg('nFMsg',errText(e),'err'); }
 }
+async function quickMatch(){
+  if(!EduNet.me){ openOnline(); return; }
+  netMsg('nFMsg','⚡ Raqiblar qidirilmoqda…');
+  const subject=EduQ.available(save.subject,save.grade)?save.subject:'mix';
+  try{ const j=await EduNet.room.quick({track:save.track, subject, level:save.grade, car:save.car}); enterLobby(j.code, j.room); }catch(e){ netMsg('nFMsg',errText(e),'err'); }
+}
 function enterLobby(code, room){
   curRoom={code, room}; showScreen('lobby');
   $('lCode').textContent=code; $('lLink').value=roomLink(code); netMsg('lMsg','');
@@ -1101,25 +1157,140 @@ function enterLobby(code, room){
   clearInterval(lobbyTimer); lobbyTimer=setInterval(lobbySync,1000);
 }
 function renderLobby(){
-  if(!curRoom) return; const r=curRoom.room, meId=EduNet.me.id, isHost=r.host===meId;
-  const tn=(THEMES.find(t=>t.id===r.track)||THEMES[0]), sn=EduQ.nameOf(r.subject), ln=(LEVELS.find(l=>l[0]===r.level)||LEVELS[1])[1];
+  if(!curRoom) return; const r=curRoom.room, meId=EduNet.me&&EduNet.me.id, isHost=r.host===meId, quick=!!r.quick;
+  const tn=(THEMES.find(t=>t.id===r.track)||THEMES[0]), sn=EduQ.nameOf(r.subject), ln=EduQ.gradeName(r.level);
   $('lMeta').textContent=`${tn.ic} ${tn.name} · ${sn} · ${ln} · ${r.players.length}/6 oʻyinchi`;
-  const items=r.players.map(p=>{ const dot=h('i'); dot.style.background=carColor(p.car); return h('li',{class:p.id===r.host?'host':''}, dot, h('span',null,h('b',{text:p.nick+(p.id===meId?' (siz)':'')}),h('small',{text:regionName(p.region)}))); });
-  for(let i=r.players.length;i<6;i++) items.push(h('li',{class:'empty',text:'boʻsh joy'}));
+  ['lCodeLbl','lCode','lLinkBox'].forEach(id=>$(id).classList.toggle('hidden',quick)); $('lQuick').classList.toggle('hidden',!quick);
+  const items=r.players.map(p=>{ const dot=h('i'); dot.style.background=carColor(p.car); return h('li',{class:(!quick&&p.id===r.host)?'host':''}, dot, h('span',null,h('b',{text:p.nick+(p.id===meId?' (siz)':'')}),h('small',{text:`${regionName(p.region)} · ⭐${p.r||1000} · ${p.lv||1}-daraja`}))); });
+  for(let i=r.players.length;i<6;i++) items.push(h('li',{class:'empty',text: quick ? 'qidirilmoqda…' : 'boʻsh joy'}));
   $('lPlayers').replaceChildren(...items);
-  const st=$('btnLStart'); st.classList.toggle('hidden',!isHost); st.disabled=r.players.length<2;
-  if(!isHost) netMsg('lMsg','⏳ Xona egasi poygani boshlashini kuting…'); else if(r.players.length<2) netMsg('lMsg','Kodni doʻstlaringizga yuboring — kamida 2 kishi kerak.'); else netMsg('lMsg','Hamma tayyor boʻlsa — boshlang!','ok');
+  const st=$('btnLStart'); st.classList.toggle('hidden',!isHost||quick); st.disabled=r.players.length<2;
+  if(quick){
+    const now=EduNet.serverNow(), n=r.players.length, target=n>=2?r.fillAt:r.soloAt, sec=Math.max(0,Math.ceil((target-now)/1000));
+    $('lQTitle').textContent = n>=2 ? `Raqiblar topildi: ${n-1} ta!` : 'Raqiblar qidirilmoqda…';
+    $('lQSub').textContent = n>=2 ? `Poyga ${sec} soniyadan keyin boshlanadi (yana qoʻshilishlari mumkin)` : `${sec} s · raqib topilmasa — botlar bilan mashq poygasi`;
+    netMsg('lMsg','');
+  } else if(!isHost) netMsg('lMsg','⏳ Xona egasi poygani boshlashini kuting…'); else if(r.players.length<2) netMsg('lMsg','Kodni doʻstlaringizga yuboring — kamida 2 kishi kerak.'); else netMsg('lMsg','Hamma tayyor boʻlsa — boshlang!','ok');
 }
 async function lobbySync(){
   if(!curRoom || state!=='menu') return;
   try{ const j=await EduNet.room.sync(curRoom.code); curRoom.room=j.room;
-    if(j.room.status==='race'){ clearInterval(lobbyTimer); lobbyTimer=null; startRace('online', j.room); return; }
+    if(j.room.status==='race'){ clearInterval(lobbyTimer); lobbyTimer=null;
+      if(j.room.quick && j.room.players.length<2){ const c=curRoom.code; curRoom=null; EduNet.room.leave(c); soloFallback=true; startRace('normal'); toast('Raqib topilmadi','good','botlar bilan mashq poygasi'); return; }
+      startRace('online', j.room); return; }
     if(j.room.status==='closed'){ leaveLobby('Xona egasi xonani yopdi.'); return; }
     renderLobby();
-  }catch(e){ if(e.message==='member'||e.message==='room') leaveLobby('Siz xonadan chiqarildingiz yoki xona tugadi.'); }
+  }catch(e){ if(e.message==='member'||e.message==='room'||e.message==='auth') leaveLobby('Siz xonadan chiqarildingiz yoki xona tugadi.'); }
 }
-function leaveLobby(msg){ clearInterval(lobbyTimer); lobbyTimer=null; if(curRoom){ EduNet.room.leave(curRoom.code); curRoom=null; } openOnline('friends').then(()=>{ if(msg) netMsg('nFMsg',msg,'err'); }); }
+function leaveLobby(msg){ const wasQuick=curRoom&&curRoom.room&&curRoom.room.quick; clearInterval(lobbyTimer); lobbyTimer=null; if(curRoom){ EduNet.room.leave(curRoom.code); curRoom=null; } openOnline(wasQuick?'rank':'friends').then(()=>{ if(msg) netMsg('nFMsg',msg,'err'); }); }
 function loadRoomFromHash(){ const hs=location.hash||''; if(!hs.startsWith('#room=')) return; const c=hs.slice(6).toUpperCase(); if(EduNet.CODE_RE.test(c)){ pendingRoom=c; setTimeout(()=>openOnline('friends'),60); } }
+/* ----- akkaunt sozlamalari ----- */
+function openAccount(){ const me=EduNet.me; if(!me){ openOnline(); return; } $('acUser').textContent=`@${me.username} · ${me.league.ic} ${me.rating} reyting · ${me.level}-daraja`; $('acNick').value=me.nick; fillRegions($('acRegion'),me.region); fillGrades($('acGrade'),me.grade); $('acOld').value=''; $('acNew').value=''; netMsg('acMsg',''); delAcctArm=false; $('btnAcDel').textContent='🗑 Akkauntni oʻchirish'; showScreen('account'); }
+let delAcctArm=false;
+/* ----- bulutda saqlash ----- */
+let cloudTimer=null;
+const DEVICE_KEYS=['muted','music','quality','steer','tutorial','cts'];
+function cloudData(){ const d={}; for(const k of Object.keys(save)) if(!DEVICE_KEYS.includes(k)) d[k]=save[k]; return d; }
+function cloudSoon(){ if(typeof EduNet==='undefined' || !EduNet.me) return; clearTimeout(cloudTimer); cloudTimer=setTimeout(cloudPush,6000); }
+async function cloudPush(){ if(!EduNet.me) return; try{ const j=await EduNet.cloud.put(cloudData()); save.cts=j.ts; store.set(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+async function cloudPull(){
+  if(!EduNet.me) return;
+  try{ const j=await EduNet.cloud.get();
+    if(j.data && j.ts>(save.cts||0)){ const dev={}; for(const k of DEVICE_KEYS) dev[k]=save[k]; const n=loadSave(Object.assign({}, j.data, dev)); n.cts=j.ts; save=n; store.set(SAVE_KEY, JSON.stringify(save)); buildMenu(); }
+    else if(!j.data || j.ts<(save.cts||0) || !save.cts) cloudPush();
+  }catch(e){}
+}
+/* ----- kunlik vazifalar ----- */
+function todayMissions(){ const d=dayStr(); const hs=EduQ.hashStr('m'+d); const out=[], used=new Set(); let k=hs;
+  for(let i=0;out.length<3 && i<40;i++){ const m=MISSIONS[k%MISSIONS.length]; k=Math.imul(k^(k>>>13),1103515245)+12345>>>0; if(used.has(m.k)) continue; used.add(m.k); out.push(m); }
+  return out; }
+function missionReset(){ const d=dayStr(); if(save.mDay!==d){ save.mDay=d; save.mProg={}; save.mClaim=[]; } }
+function missionAdd(k,n){ if(!n) return; missionReset(); save.mProg[k]=Math.min(1e5,(save.mProg[k]||0)+n); }
+function missionState(){ missionReset(); return todayMissions().map(m=>({m, p:Math.min(m.n,save.mProg[m.k]||0), done:(save.mProg[m.k]||0)>=m.n, claimed:save.mClaim.includes(m.id)})); }
+function buildMissions(){
+  const st=missionState();
+  $('msStreak').replaceChildren(h('b',{text:`🔥 ${save.streak} kunlik seriya`}), h('small',{text:'Har kuni oʻynang — seriya uzilmasin! Hammasini bajarsangiz +100 🪙 bonus.'}));
+  const rows=st.map(x=>{ const bar=h('i'); bar.style.width=(x.p/x.m.n*100)+'%';
+    const b=h('button',{class:'btn mini'+(x.done&&!x.claimed?' primary':''),text: x.claimed?'✓ Olindi':x.done?`🪙 +${x.m.r} olish`:`🪙 ${x.m.r}`}); b.disabled=!x.done||x.claimed;
+    b.addEventListener('click',()=>{ if(!x.done||save.mClaim.includes(x.m.id)) return; save.mClaim.push(x.m.id); save.coins=Math.min(1e7,save.coins+x.m.r); Sound.init(); Sound.coin();
+      if(todayMissions().every(m=>save.mClaim.includes(m.id)) && !save.mClaim.includes('all')){ save.mClaim.push('all'); save.coins=Math.min(1e7,save.coins+100); unlockAch('missions'); }
+      persist(); buildMissions(); });
+    return h('div',{class:'msrow'+(x.claimed?' claimed':'')}, h('span',{class:'ic',text:x.m.ic}), h('div',{class:'mt'},h('b',{text:x.m.t}),h('div',{class:'bar'},bar),h('small',{text:`${x.p} / ${x.m.n}`})), b); });
+  $('msList').replaceChildren(...rows);
+}
+/* ----- mini oʻyinlar ----- */
+const MINIS=[
+  {id:'calc', ic:'🧮', n:'Tezkor hisob', d:'60 soniyada imkon qadar koʻp misol yeching. Xato: −3 s.'},
+  {id:'tf', ic:'✅', n:'Rost yoki yolgʻon', d:'45 soniya: darslik faktlari — rostmi yoki yolgʻonmi?'},
+  {id:'pairs', ic:'🃏', n:'Juftlikni top', d:'Savol va uning javobini juftlang — tez va xatosiz.'}
+];
+let mg=null;
+function buildMinis(){
+  $('miList').replaceChildren(...MINIS.map(m=>{ const b=h('button',{class:'minicard'}, h('span',{class:'ic',text:m.ic}), h('div',null,h('b',{text:m.n}),h('small',{text:m.d}),h('small',{class:'best',text:`🏆 Rekord: ${save.mini[m.id]||0}`})), h('span',{class:'go',text:'▶'}));
+    b.addEventListener('click',()=>startMini(m.id)); return b; }));
+}
+function startMini(id){
+  Sound.init(); EduQ.unseed(); EduQ.resetBags();
+  const def=MINIS.find(m=>m.id===id); mg={id, def, score:0, time:id==='calc'?60:id==='tf'?45:0, t0:performance.now(), over:false, timer:null, mistakes:0};
+  $('mgTitle').textContent=def.ic+' '+def.n; $('mgScore').textContent='0'; $('mgTime').textContent=mg.time?mg.time+' s':'0 s';
+  showScreen('minigame');
+  if(id==='pairs') miniPairs(); else miniNext();
+  mg.timer=setInterval(miniTick,250);
+}
+function miniTick(){
+  if(!mg||mg.over) return;
+  const el=(performance.now()-mg.t0)/1000;
+  if(mg.id==='pairs'){ $('mgTime').textContent=Math.floor(el)+' s'; return; }
+  const left=Math.max(0,Math.ceil(mg.time-el)); $('mgTime').textContent=left+' s'; if(left<=0) miniEnd();
+}
+function miniAnswerUI(qtext, sub, opts, onPick){
+  const body=$('mgBody');
+  const btns=opts.map((t,i)=>{ const b=h('button',{class:'mopt o'+i,text:t}); b.addEventListener('click',()=>onPick(i,b,btns)); return b; });
+  body.replaceChildren(h('small',{class:'msub',text:sub||''}), h('div',{class:'mq',text:qtext}), h('div',{class:'mopts'+(opts.length===2?' two':'')},...btns));
+}
+function miniNext(){
+  if(!mg||mg.over) return;
+  if(mg.id==='calc'){
+    const q=EduQ.mathQuick(save.grade);
+    miniAnswerUI(q.q,'Matematika · '+EduQ.gradeName(save.grade),q.opts,(i,b,btns)=>{ if(mg.lock) return; mg.lock=true;
+      if(i===q.ans){ mg.score++; b.classList.add('ok'); Sound.good&&Sound.good(); } else { mg.t0-=3000; b.classList.add('bad'); btns[q.ans].classList.add('ok'); Sound.bad&&Sound.bad(); mg.mistakes++; }
+      $('mgScore').textContent=mg.score; setTimeout(()=>{ mg.lock=false; miniNext(); }, i===q.ans?250:700); });
+  } else {
+    const it=EduQ.rawItem(save.subject,save.grade); const truth=Math.random()<0.5; const shown=truth?it.a:it.w[Math.random()<0.5?0:1];
+    miniAnswerUI(`${it.q}\n→ ${shown}`, it.sub+' · '+EduQ.gradeName(save.grade), ['✅ Rost','❌ Yolgʻon'], (i,b,btns)=>{ if(mg.lock) return; mg.lock=true;
+      const ok=(i===0)===truth; if(ok){ mg.score++; b.classList.add('ok'); Sound.good&&Sound.good(); } else { b.classList.add('bad'); mg.t0-=3000; mg.mistakes++; Sound.bad&&Sound.bad(); }
+      $('mgScore').textContent=mg.score; const hint=$('mgBody').querySelector('.mq'); if(!ok && hint) hint.textContent=`${it.q}\n✔ ${it.a}`; setTimeout(()=>{ mg.lock=false; miniNext(); }, ok?300:1200); });
+  }
+}
+function miniPairs(){
+  const items=[], seen=new Set(); let guard=0;
+  while(items.length<6 && guard++<80){ const it=EduQ.rawItem(save.subject,save.grade); if(it.q.length>46||seen.has(it.a)||seen.has(it.q)) continue; seen.add(it.a); seen.add(it.q); items.push(it); }
+  const cards=[]; items.forEach((it,i)=>{ cards.push({k:i,t:it.q,kind:'q'}); cards.push({k:i,t:it.a,kind:'a'}); });
+  for(let i=cards.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [cards[i],cards[j]]=[cards[j],cards[i]]; }
+  let sel=null, found=0;
+  const els=cards.map(c=>{ const b=h('button',{class:'pcard '+c.kind,text:c.t}); b.addEventListener('click',()=>{ if(mg.over||b.classList.contains('done')||b===sel) return;
+      if(!sel){ sel=b; b.classList.add('sel'); return; }
+      const a=cards[els.indexOf(sel)]; const prev=sel; sel=null; prev.classList.remove('sel');
+      if(a.k===c.k && a.kind!==c.kind){ prev.classList.add('done'); b.classList.add('done'); found++; Sound.good&&Sound.good(); mg.score=found; $('mgScore').textContent=found+'/6'; if(found===items.length) setTimeout(miniEnd,400); }
+      else { mg.mistakes++; prev.classList.add('bad'); b.classList.add('bad'); Sound.bad&&Sound.bad(); setTimeout(()=>{ prev.classList.remove('bad'); b.classList.remove('bad'); },500); } });
+    return b; });
+  $('mgScore').textContent='0/6';
+  $('mgBody').replaceChildren(h('small',{class:'msub',text:'Savolni bosing, soʻng uning javobini bosing'}), h('div',{class:'pgrid'},...els));
+}
+function miniEnd(){
+  if(!mg||mg.over) return; mg.over=true; clearInterval(mg.timer);
+  let score=mg.score;
+  if(mg.id==='pairs'){ const el=(performance.now()-mg.t0)/1000; score=mg.score===6 ? Math.max(10, Math.round(120-el-mg.mistakes*5)) : mg.score*5; }
+  const best=save.mini[mg.id]||0, rec=score>best; if(rec) save.mini[mg.id]=score;
+  const coins=Math.min(200, mg.id==='pairs'?Math.round(score/4):score*3);
+  save.coins=Math.min(1e7,save.coins+coins); missionAdd('mini',1); unlockAch('mini'); persist();
+  Sound.fanfare&&Sound.fanfare();
+  const again=h('button',{class:'btn primary',text:'↻ Yana'}); again.addEventListener('click',()=>startMini(mg.id));
+  const back=h('button',{class:'btn',text:'◀ Mini oʻyinlar'}); back.addEventListener('click',()=>{ mg=null; buildMinis(); showScreen('mini'); });
+  $('mgBody').replaceChildren(h('div',{class:'mgend'}, h('div',{class:'res-place',text:rec?'🏆 Yangi rekord!':'🏁 Tugadi!'}),
+    h('div',{class:'stats'}, h('div',null,h('b',{text:String(score)}),h('small',{text:'Natija'})), h('div',null,h('b',{text:String(Math.max(best,score))}),h('small',{text:'Rekord'})), h('div',null,h('b',{class:'yellow',text:'+'+coins}),h('small',{text:'Tanga'}))),
+    h('div',{class:'row'},back,again)));
+}
 
 function goMenu(){ if(mode==='online' && curRoom){ EduNet.room.leave(curRoom.code); curRoom=null; } stopSync(); onlinePaused=false; state='menu'; EduQ.unseed(); mode='normal'; $('hud').classList.add('hidden'); const t=THEMES.find(x=>x.id===save.track)||THEMES[0]; useTheme(t); buildMenu(); showScreen('menu'); spawnCars(posAbs+playerZ+segmentLength*20); nitro=0; particles=[]; if(Sound.ctx) Music.start(); }
 function pauseGame(){ if(mode==='online'){ if(state==='race'||state==='countdown'||state==='finish'){ onlinePaused=true; showScreen('pause'); } return; } if(state==='race'||state==='countdown'||state==='finish'){ prevState=state; state='paused'; showScreen('pause'); Music.stop(); } }
@@ -1131,8 +1302,9 @@ function bindUI(){
   $('tracks').addEventListener('click',e=>{ const b=e.target.closest('[data-t]'); if(!b) return; const t=THEMES.find(x=>x.id===b.dataset.t); if(!t) return;
     if(!isUnlocked(t)){ alertMenu(`🔒 ${t.name} uchun ${t.need} ta yulduz kerak (sizda ${totalStars()}).`); return; }
     save.track=t.id; persist(); useTheme(t); spawnCars(posAbs+playerZ+segmentLength*20); buildMenu(); });
-  $('subjects').addEventListener('click',e=>{ const b=e.target.closest('[data-s]'); if(!b||!EduQ.SUBJECT_IDS.includes(b.dataset.s)) return; save.subject=b.dataset.s; persist(); buildMenu(); });
-  $('levels').addEventListener('click',e=>{ const b=e.target.closest('[data-l]'); if(!b) return; const v=+b.dataset.l; if([1,2,3].includes(v)){ save.level=v; persist(); buildMenu(); } });
+  $('subjects').addEventListener('click',e=>{ const b=e.target.closest('[data-s]'); if(!b||!EduQ.SUBJECT_IDS.includes(b.dataset.s)) return; const sd=EduQ.SUBJECTS.find(x=>x.id===b.dataset.s);
+    if(!EduQ.available(sd.id,save.grade)){ alertMenu(`${sd.ic} ${sd.name} ${sd.min}-sinfdan oʻqitiladi — yuqoriroq sinfni tanlang.`); return; } save.subject=b.dataset.s; persist(); buildMenu(); });
+  $('grades').addEventListener('click',e=>{ const b=e.target.closest('[data-g]'); if(!b) return; const v=+b.dataset.g; if(EduQ.GRADES.includes(v)){ save.grade=v; if(!EduQ.available(save.subject,v)) save.subject='mix'; persist(); buildMenu(); } });
   on('btnStart',()=>startRace('normal'));
   on('btnDaily',()=>startRace('daily'));
   on('btnQuizStart',()=>{ if(activeQuiz) startRace('quiz'); });
@@ -1154,15 +1326,34 @@ function bindUI(){
   on('btnOnline',()=>{ Sound.init(); openOnline(); });
   on('btnNBack',()=>{ buildMenu(); showScreen('menu'); });
   on('btnNetRetry',()=>openOnline());
-  on('btnNickRnd',()=>{ $('nNick').value=EduNet.suggest(); });
-  on('btnNetEdit',showReg);
-  let delArm=false;
-  on('btnNetDel',async()=>{ if(!delArm){ delArm=true; netMsg('nFMsg','Onlayn profil va reytingdagi natijalaringiz oʻchiriladi. Tasdiqlash uchun 🗑 ni yana bosing.','err'); setTimeout(()=>{ delArm=false; },5000); return; }
-    delArm=false; try{ await EduNet.deleteMe(); netMsg('nFMsg',''); openOnline(); }catch(e){ netMsg('nFMsg',errText(e),'err'); } });
-  on('btnNetSave',async()=>{ netMsg('nMsg','Saqlanmoqda…'); try{ await EduNet.register($('nNick').value,$('nRegion').value); showNetMain(); }catch(e){ netMsg('nMsg',errText(e),'err'); } });
+  on('btnNickRnd',()=>{ $('rgNick').value=EduNet.suggest(); });
+  $('aTabs').addEventListener('click',e=>{ const b=e.target.closest('[data-v]'); if(!b) return; authTab=b.dataset.v; showAuth(); });
+  $('fLogin').addEventListener('submit',async e=>{ e.preventDefault(); netMsg('aMsg','Kirilmoqda…'); try{ await EduNet.login($('liUser').value.trim().toLowerCase(),$('liPass').value); await afterAuth(); }catch(er){ netMsg('aMsg',errText(er),'err'); } });
+  $('fReg').addEventListener('submit',async e=>{ e.preventDefault();
+    const u=$('rgUser').value.trim().toLowerCase(), p=$('rgPass').value;
+    if(!/^[a-z0-9_]{3,20}$/.test(u) || /^\d+$/.test(u)){ netMsg('aMsg',errText({message:'username'}),'err'); return; }
+    if(p.length<6){ netMsg('aMsg',errText({message:'password'}),'err'); return; }
+    if(p!==$('rgPass2').value){ netMsg('aMsg','Parollar bir xil emas.','err'); return; }
+    netMsg('aMsg','Akkaunt yaratilmoqda…');
+    try{ await EduNet.register({username:u, password:p, nick:$('rgNick').value.trim(), region:$('rgRegion').value, grade:+$('rgGrade').value}); save.grade=EduNet.me.grade; persist(); await afterAuth(); toast('Xush kelibsiz!','good',EduNet.me.nick); }catch(er){ netMsg('aMsg',errText(er),'err'); } });
+  on('btnQuick',quickMatch);
+  on('btnAcct',openAccount);
+  on('mAcct',()=>{ Sound.init(); if(EduNet.me) openAccount(); else openOnline(); });
+  on('btnAcBack',()=>openOnline());
+  on('btnAcSave',async()=>{ netMsg('acMsg','Saqlanmoqda…'); try{ await EduNet.update({nick:$('acNick').value.trim(), region:$('acRegion').value, grade:+$('acGrade').value}); save.grade=EduNet.me.grade; persist(); netMsg('acMsg','✅ Saqlandi','ok'); buildMenu(); }catch(e){ netMsg('acMsg',errText(e),'err'); } });
+  on('btnAcPass',async()=>{ const o=$('acOld').value, n=$('acNew').value; if(n.length<6){ netMsg('acMsg',errText({message:'newpassword'}),'err'); return; }
+    netMsg('acMsg','Yangilanmoqda…'); try{ await EduNet.changePassword(o,n); $('acOld').value=''; $('acNew').value=''; netMsg('acMsg','✅ Parol yangilandi. Boshqa qurilmalardagi seanslar yopildi.','ok'); }catch(e){ netMsg('acMsg',errText(e),'err'); } });
+  on('btnLogout',async()=>{ await cloudPush(); EduNet.logout(); buildMenu(); openOnline(); });
+  on('btnAcDel',async()=>{ if(!delAcctArm){ delAcctArm=true; $('btnAcDel').textContent='⚠️ Tasdiqlash'; netMsg('acMsg','Akkaunt, reyting va bulutdagi progress butunlay oʻchadi. “Joriy parol” maydoniga parolni yozib, yana bir marta bosing.','err'); return; }
+    try{ await EduNet.deleteAccount($('acOld').value); delAcctArm=false; buildMenu(); openOnline(); }catch(e){ netMsg('acMsg',errText(e),'err'); } });
+  on('btnMissions',()=>{ Sound.init(); buildMissions(); showScreen('missions'); });
+  on('btnMsBack',()=>{ buildMenu(); showScreen('menu'); });
+  on('btnMini',()=>{ Sound.init(); buildMinis(); showScreen('mini'); });
+  on('btnMiBack',()=>{ buildMenu(); showScreen('menu'); });
+  on('btnMgQuit',()=>{ if(mg){ clearInterval(mg.timer); mg.over=true; mg=null; } buildMinis(); showScreen('mini'); });
   $('nTabs').addEventListener('click',e=>{ const b=e.target.closest('[data-v]'); if(!b) return; onlineTab=b.dataset.v; showNetMain(); });
   $('nBoards').addEventListener('click',e=>{ const b=e.target.closest('[data-v]'); if(!b) return; boardType=b.dataset.v; loadBoard(); });
-  on('btnRoomCreate',async()=>{ netMsg('nFMsg','Xona yaratilmoqda…'); try{ const j=await EduNet.room.create({track:save.track, subject:save.subject, level:save.level, car:save.car}); enterLobby(j.code,j.room); }catch(e){ netMsg('nFMsg',errText(e),'err'); } });
+  on('btnRoomCreate',async()=>{ netMsg('nFMsg','Xona yaratilmoqda…'); try{ const j=await EduNet.room.create({track:save.track, subject:EduQ.available(save.subject,save.grade)?save.subject:'mix', level:save.grade, car:save.car}); enterLobby(j.code,j.room); }catch(e){ netMsg('nFMsg',errText(e),'err'); } });
   on('btnRoomJoin',()=>joinRoom($('nCode').value));
   $('nCode').addEventListener('input',()=>{ $('nCode').value=$('nCode').value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4); });
   on('btnLCopy',async()=>{ try{ await navigator.clipboard.writeText($('lLink').value); netMsg('lMsg','📋 Havola nusxalandi — doʻstlaringizga yuboring!','ok'); }catch(e){ $('lLink').select(); } });
@@ -1194,7 +1385,7 @@ function bindUI(){
   on('btnRestart',()=>{ if(mode==='online'){ resumeGame(); return; } startRace(mode); });
   on('btnQuit',goMenu);
   on('btnSound',()=>{ save.muted=!save.muted; persist(); soundLabel(); });
-  on('btnRAgain',()=>{ if(mode==='online'){ const c=curRoom; stopSync(); curRoom=null; mode='normal'; if(c) EduNet.room.leave(c.code); openOnline('friends'); return; } startRace(mode==='review'&&!mistakes.length?'normal':mode); });
+  on('btnRAgain',()=>{ if(mode==='online'){ const c=curRoom, q=c&&c.room&&c.room.quick; stopSync(); curRoom=null; mode='normal'; if(c) EduNet.room.leave(c.code); if(q){ openOnline('rank').then(quickMatch); } else openOnline('friends'); return; } startRace(mode==='review'&&!mistakes.length?'normal':mode); });
   on('btnRReview',()=>startRace('review'));
   on('btnRMenu',goMenu);
   const hold=(id,key)=>{ const el=$(id);
@@ -1221,7 +1412,7 @@ function resize(){
   let w=innerWidth*dpr, hh=innerHeight*dpr; const maxW=lowQuality()?960:1280;
   if(w>maxW){ hh=hh*maxW/w; w=maxW; }
   W=canvas.width=Math.round(w); H=canvas.height=Math.round(hh);
-  $('rotate').classList.toggle('hidden',!(innerHeight>innerWidth && ('ontouchstart' in window)));
+  rotHint();
 }
 
 /* ================= start ================= */
@@ -1241,7 +1432,7 @@ posAbs=START_SEG*segmentLength; spawnCars(posAbs+playerZ+segmentLength*20);
 bindUI(); soundLabel(); applyQuality(); addEventListener('resize',resize);
 loadQuizFromHash();
 buildMenu();
-EduNet.check().then(av=>{ $('onlineNote').textContent = av ? 'Reyting · Viloyatlar bellashuvi · Doʻstlar bilan jonli poyga' : 'Internet orqali — server bilan bogʻlanilmoqda'; });
+EduNet.check().then(av=>{ $('onlineNote').textContent = av ? 'Akkaunt · Elo reyting va ligalar · Doʻstlar bilan jonli poyga' : 'Internet orqali — server bilan bogʻlanilmoqda'; if(av && EduNet.me){ EduNet.refresh().then(()=>{ buildMenu(); cloudPull(); }).catch(()=>buildMenu()); } });
 loadRoomFromHash();
 if(!save.tutorial) showTutorial('menu'); else showScreen('menu');
 requestAnimationFrame(frame);
@@ -1253,5 +1444,5 @@ if('serviceWorker' in navigator && (location.protocol==='https:' || location.hos
 }
 // Test ilgaklari FAQAT lokal ishlab chiqish muhitida (file://, localhost). Saytda mavjud emas.
 const LOCAL_DEV = location.protocol==='file:' || location.hostname==='localhost' || location.hostname==='127.0.0.1';
-if(LOCAL_DEV){ window.EduRace={get state(){return state;}, get place(){return playerPlace;}, get stats(){return stats;}, get mode(){return mode;}, get theme(){return curTheme.id;}, get gates(){return gates.length;}, jumpToEnd(){ posAbs=startAbs+LAPS*trackLength-playerZ-segmentLength*30; }, nextGate(d){ const g=gates[gp]; posAbs=lapBase+g.seg*segmentLength-playerZ-segmentLength*(d||120); return g.q; }, setX(x){playerX=x;}, get x(){return playerX;}, seek(seg){ posAbs=seg*segmentLength-playerZ; }, curQ(){ return gates[gp]&&gates[gp].q; }, steerTo(t){ keys.left = playerX>t+0.08; keys.right = playerX<t-0.08; }, giveStars(n){ save.stars={toshkent:Math.min(3,n),samarqand:Math.min(3,Math.max(0,n-3)),chorvoq:Math.min(3,Math.max(0,n-6)),buxoro:Math.min(3,Math.max(0,n-9))}; persist(); buildMenu(); }, get net(){ return {me:EduNet.me, room:curRoom&&curRoom.code, ranks: mode==='online'?onlineRanks():null, cars:cars.length}; }, get tilt(){ return {a:Tilt.active,v:Tilt.value,raw:Tilt.raw,off:Tilt.offset,bound:Tilt.bound,mode:save.steer}; }, setTrack(id){ const t=THEMES.find(x=>x.id===id); save.track=id; useTheme(t); buildMenu(); }}; }
+if(LOCAL_DEV){ window.EduRace={get state(){return state;}, get place(){return playerPlace;}, get stats(){return stats;}, get mode(){return mode;}, get theme(){return curTheme.id;}, get gates(){return gates.length;}, jumpToEnd(){ posAbs=startAbs+LAPS*trackLength-playerZ-segmentLength*30; }, nextGate(d){ const g=gates[gp]; posAbs=lapBase+g.seg*segmentLength-playerZ-segmentLength*(d||120); return g.q; }, setX(x){playerX=x;}, get x(){return playerX;}, seek(seg){ posAbs=seg*segmentLength-playerZ; }, curQ(){ return gates[gp]&&gates[gp].q; }, allQ(){ return gates.map(g=>g.q&&g.q.q); }, get gp(){ return gp; }, steerTo(t){ keys.left = playerX>t+0.08; keys.right = playerX<t-0.08; }, giveStars(n){ save.stars={toshkent:Math.min(3,n),samarqand:Math.min(3,Math.max(0,n-3)),chorvoq:Math.min(3,Math.max(0,n-6)),buxoro:Math.min(3,Math.max(0,n-9))}; persist(); buildMenu(); }, get net(){ return {me:EduNet.me, room:curRoom&&curRoom.code, ranks: mode==='online'?onlineRanks():null, cars:cars.length}; }, get tilt(){ return {a:Tilt.active,v:Tilt.value,raw:Tilt.raw,off:Tilt.offset,bound:Tilt.bound,mode:save.steer}; }, setTrack(id){ const t=THEMES.find(x=>x.id===id); save.track=id; useTheme(t); buildMenu(); }}; }
 })();

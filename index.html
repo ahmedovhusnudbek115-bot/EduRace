@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#07051a">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="Edu Race — oʻquvchilar uchun taʼlimiy poyga oʻyini: matematika, ingliz va rus tili, fizika, kimyo, tarix, geografiya.">
+<meta name="description" content="Edu Race — Oʻzbekiston oʻquvchilari uchun onlayn taʼlimiy poyga: darsliklar boʻyicha 11 fan, 1–11-sinf, reyting, ligalar va mini oʻyinlar.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -51,7 +51,7 @@
 
 <!-- MAIN MENU -->
 <div id="menu" class="screen hidden">
-  <div class="topbar"><span class="pill" id="mStars">⭐ 0</span><span class="pill coin">🪙 <span id="mCoins">0</span></span></div>
+  <div class="topbar"><button class="pill acct" id="mAcct">👤 Kirish</button><span class="pill" id="mStars">⭐ 0</span><span class="pill coin">🪙 <span id="mCoins">0</span></span></div>
   <div class="card menu-card">
     <h1 class="logo">EDU RACE</h1>
     <p class="tag">Oʻqi · Poygada yut · Chempion boʻl</p>
@@ -59,17 +59,19 @@
       <div><b>📋 Oʻqituvchi testi:</b> <span id="qbTitle"></span> <small id="qbCount"></small></div>
       <div class="banner-btns"><button class="btn mini primary" id="btnQuizStart">▶ Boshlash</button><button class="btn mini" id="btnQuizClose" aria-label="Yopish">✕</button></div>
     </div>
+    <button class="missions-strip" id="btnMissions"><span>📋 Kunlik vazifalar</span><span id="mMissions">0/3</span><span class="mbar"><i id="mMissBar"></i></span></button>
     <h3>Trassa</h3>
     <div class="tracks" id="tracks"></div>
+    <h3>Sinf <small class="h3note">— savollar darslik mavzulari boʻyicha</small></h3>
+    <div class="grades" id="grades"></div>
     <h3>Fan</h3>
     <div class="grid g4" id="subjects"></div>
-    <h3>Sinf</h3>
-    <div class="grid g3" id="levels"></div>
     <div class="row">
       <button class="btn primary" id="btnStart">▶ POYGANI BOSHLASH</button>
       <button class="btn daily" id="btnDaily">📅 Kunlik musobaqa<small id="dailyNote"></small></button>
     </div>
-    <button class="btn online" id="btnOnline">🌐 ONLAYN — butun Oʻzbekiston bilan bellashing<small id="onlineNote">Reyting · Viloyatlar bellashuvi · Doʻstlar bilan jonli poyga</small></button>
+    <button class="btn online" id="btnOnline">🌐 ONLAYN — tezkor oʻyin va reyting<small id="onlineNote">Akkaunt · Elo reyting va ligalar · Doʻstlar bilan jonli poyga</small></button>
+    <button class="btn minis" id="btnMini">🎮 Mini oʻyinlar<small>Tezkor hisob · Rost yoki yolgʻon · Juftlikni top</small></button>
     <div class="row icons">
       <button class="btn" id="btnGarage">🚗 Garaj</button>
       <button class="btn" id="btnProfile">🏆 Profil</button>
@@ -142,22 +144,39 @@
     <h1 class="logo logo-md">ONLAYN</h1>
     <p class="tag">Butun Oʻzbekiston bilan bellashing</p>
     <div id="netOff" class="banner warn hidden"><div>⚠️ <span id="netOffText">Server bilan bogʻlanib boʻlmadi.</span></div><div class="banner-btns"><button class="btn mini" id="btnNetRetry">↻ Qayta</button></div></div>
-    <div id="netReg" class="regbox hidden">
-      <h3>Onlayn profil yarating</h3>
-      <div class="regrow">
-        <label class="field">Laqab (3–16 belgi)<input id="nNick" type="text" maxlength="16" autocomplete="off" placeholder="Masalan: Tezkor Burgut"></label>
-        <button class="btn mini" id="btnNickRnd" aria-label="Tasodifiy laqab">🎲</button>
-        <label class="field">Viloyat<select id="nRegion"></select></label>
-      </div>
-      <div class="small-note show">Haqiqiy ism, telefon yoki email soʻralmaydi. Laqab va viloyat reytingda koʻrinadi.</div>
-      <div class="row"><button class="btn primary" id="btnNetSave">💾 Saqlash</button></div>
-      <div id="nMsg" class="tmsg"></div>
+    <div id="netAuth" class="regbox hidden">
+      <div class="seg tabs" id="aTabs"><button data-v="login" class="on">🔑 Kirish</button><button data-v="register">✨ Roʻyxatdan oʻtish</button></div>
+      <form id="fLogin" class="aform" autocomplete="on">
+        <label class="field">Login<input id="liUser" name="username" type="text" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="masalan: ali_07"></label>
+        <label class="field">Parol<input id="liPass" name="password" type="password" maxlength="64" autocomplete="current-password"></label>
+        <div class="row"><button class="btn primary" id="btnLogin" type="submit">🔑 Kirish</button></div>
+      </form>
+      <form id="fReg" class="aform hidden" autocomplete="on">
+        <div class="regrow2">
+          <label class="field">Login (3–20: a-z, 0-9, _)<input id="rgUser" name="username" type="text" maxlength="20" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="masalan: ali_07"></label>
+          <label class="field">Parol (kamida 6 belgi)<input id="rgPass" name="new-password" type="password" maxlength="64" autocomplete="new-password"></label>
+          <label class="field">Laqab — reytingda koʻrinadi<span class="nickrow"><input id="rgNick" type="text" maxlength="16" autocomplete="off" placeholder="Masalan: Tezkor Burgut"><button class="btn mini" id="btnNickRnd" type="button" aria-label="Tasodifiy laqab">🎲</button></span></label>
+          <label class="field">Parolni takrorlang<input id="rgPass2" type="password" maxlength="64" autocomplete="new-password"></label>
+          <label class="field">Viloyat<select id="rgRegion"></select></label>
+          <label class="field">Sinf<select id="rgGrade"></select></label>
+        </div>
+        <div class="small-note show">Haqiqiy ism, telefon yoki email soʻralmaydi. Parol shifrlangan holda saqlanadi — uni hech kim (hatto biz ham) koʻra olmaydi.</div>
+        <div class="row"><button class="btn primary" id="btnRegister" type="submit">✨ Akkaunt yaratish</button></div>
+      </form>
+      <div id="aMsg" class="tmsg"></div>
     </div>
     <div id="netMain" class="hidden">
-      <div class="mecard"><span>👤 <b id="nMeNick"></b> · <span id="nMeRegion"></span></span><span class="banner-btns"><button class="btn mini" id="btnNetEdit">✏️ Oʻzgartirish</button><button class="btn mini danger" id="btnNetDel" aria-label="Onlayn profilni oʻchirish">🗑</button></span></div>
-      <div class="seg tabs" id="nTabs"><button data-v="rank" class="on">🏆 Reyting</button><button data-v="friends">👥 Doʻstlar bilan</button></div>
+      <div class="mecard pro">
+        <div class="league" id="nLeague">🥉</div>
+        <div class="meinfo"><b id="nMeNick"></b><small id="nMeSub"></small>
+          <div class="xp"><i id="nXpBar"></i></div><small id="nXpText"></small></div>
+        <div class="mestats"><div><b id="nRating">1000</b><small>reyting</small></div><div><b id="nRank">—</b><small>oʻrin</small></div><div><b id="nWins">0</b><small>gʻalaba</small></div></div>
+        <button class="btn mini" id="btnAcct" aria-label="Akkaunt sozlamalari">⚙️</button>
+      </div>
+      <button class="btn quick" id="btnQuick">⚡ TEZKOR OʻYIN<small id="quickNote">Server sizga teng raqiblarni topadi · reytingli</small></button>
+      <div class="seg tabs" id="nTabs"><button data-v="rank" class="on">🏆 Reytinglar</button><button data-v="friends">👥 Doʻstlar bilan</button></div>
       <div id="nRank">
-        <div class="seg" id="nBoards"><button data-v="daily">☀️ Kunlik</button><button data-v="weekly" class="on">📅 Haftalik</button><button data-v="region">📍 Viloyatim</button><button data-v="regions">🗺️ Viloyatlar</button></div>
+        <div class="seg" id="nBoards"><button data-v="rating" class="on">⭐ Reyting</button><button data-v="daily">☀️ Kunlik</button><button data-v="weekly">📅 Haftalik</button><button data-v="region">📍 Viloyatim</button><button data-v="regions">🗺️ Viloyatlar</button></div>
         <div id="nBoardInfo" class="tmsg"></div>
         <ol id="nBoard" class="board"></ol>
         <div id="nMe" class="meline"></div>
@@ -166,7 +185,7 @@
         <p class="tag left">Xona yarating va kodni doʻstlaringizga yuboring — 6 kishigacha bir vaqtda, bir xil savollar bilan poyga!</p>
         <div class="row"><button class="btn primary" id="btnRoomCreate">➕ Xona yaratish</button></div>
         <div class="joinrow"><input id="nCode" type="text" maxlength="4" autocomplete="off" placeholder="KOD" aria-label="Xona kodi"><button class="btn" id="btnRoomJoin">➡️ Qoʻshilish</button></div>
-        <div class="small-note show">Xona menyuda tanlangan trassa, fan va sinf bilan yaratiladi.</div>
+        <div class="small-note show">Xona menyuda tanlangan trassa, fan va sinf bilan yaratiladi. Doʻstlar xonasi reytingga taʼsir qilmaydi, lekin tajriba (XP) beradi.</div>
       </div>
       <div id="nFMsg" class="tmsg"></div>
     </div>
@@ -177,9 +196,10 @@
 <!-- LOBBY -->
 <div id="lobby" class="screen hidden">
   <div class="card card-md">
-    <p class="tag">Xona kodi</p>
+    <div id="lQuick" class="qsearch hidden"><div class="radar"><i></i><i></i></div><h2 id="lQTitle">Raqiblar qidirilmoqda…</h2><p class="tag" id="lQSub"></p></div>
+    <p class="tag" id="lCodeLbl">Xona kodi</p>
     <div class="roomcode" id="lCode">----</div>
-    <div class="linkbox"><input id="lLink" type="text" readonly aria-label="Xona havolasi"><button class="btn mini primary" id="btnLCopy">📋 Nusxalash</button></div>
+    <div class="linkbox" id="lLinkBox"><input id="lLink" type="text" readonly aria-label="Xona havolasi"><button class="btn mini primary" id="btnLCopy">📋 Nusxalash</button></div>
     <div class="lmeta" id="lMeta"></div>
     <ul class="lplayers" id="lPlayers"></ul>
     <div id="lMsg" class="tmsg"></div>
@@ -187,6 +207,60 @@
       <button class="btn" id="btnLLeave">🚪 Chiqish</button>
       <button class="btn primary" id="btnLStart">▶ Poygani boshlash</button>
     </div>
+  </div>
+</div>
+
+<!-- ACCOUNT -->
+<div id="account" class="screen hidden">
+  <div class="card card-md">
+    <h1 class="logo logo-sm">AKKAUNT</h1>
+    <p class="tag" id="acUser"></p>
+    <div class="regrow2">
+      <label class="field">Laqab<input id="acNick" type="text" maxlength="16" autocomplete="off"></label>
+      <label class="field">Viloyat<select id="acRegion"></select></label>
+      <label class="field">Sinf<select id="acGrade"></select></label>
+    </div>
+    <div class="row"><button class="btn primary" id="btnAcSave">💾 Saqlash</button></div>
+    <h3>Parolni almashtirish</h3>
+    <div class="regrow2">
+      <label class="field">Joriy parol<input id="acOld" type="password" maxlength="64" autocomplete="current-password"></label>
+      <label class="field">Yangi parol<input id="acNew" type="password" maxlength="64" autocomplete="new-password"></label>
+    </div>
+    <div class="row"><button class="btn" id="btnAcPass">🔒 Parolni yangilash</button></div>
+    <div id="acMsg" class="tmsg"></div>
+    <div class="row">
+      <button class="btn" id="btnAcBack">◀ Orqaga</button>
+      <button class="btn" id="btnLogout">🚪 Chiqish</button>
+      <button class="btn danger" id="btnAcDel">🗑 Akkauntni oʻchirish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MISSIONS -->
+<div id="missions" class="screen hidden">
+  <div class="card card-md">
+    <h1 class="logo logo-sm">VAZIFALAR</h1>
+    <p class="tag">Har kuni yangi vazifalar · bajaring va tanga oling</p>
+    <div class="streakbox" id="msStreak"></div>
+    <div id="msList" class="mslist"></div>
+    <div class="row"><button class="btn" id="btnMsBack">◀ Orqaga</button></div>
+  </div>
+</div>
+
+<!-- MINI GAMES -->
+<div id="mini" class="screen hidden">
+  <div class="card card-md">
+    <h1 class="logo logo-sm">MINI OʻYINLAR</h1>
+    <p class="tag">Qisqa, tez va foydali — tanga va tajriba yigʻing</p>
+    <div class="minilist" id="miList"></div>
+    <div class="row"><button class="btn" id="btnMiBack">◀ Orqaga</button></div>
+  </div>
+</div>
+<div id="minigame" class="screen hidden">
+  <div class="card card-md mg">
+    <div class="mgtop"><span class="pill" id="mgTitle"></span><span class="pill" id="mgScore">0</span><span class="pill" id="mgTime">60</span></div>
+    <div id="mgBody" class="mgbody"></div>
+    <div class="row"><button class="btn" id="btnMgQuit">✕ Chiqish</button></div>
   </div>
 </div>
 
@@ -258,6 +332,7 @@
 </div>
 <div id="rotate" class="hidden">📱 Yaxshiroq oʻynash uchun telefonni yotqizing</div>
 
+<script src="bank.js" defer></script>
 <script src="questions.js" defer></script>
 <script src="online.js" defer></script>
 <script src="game.js" defer></script>

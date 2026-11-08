@@ -1,8 +1,8 @@
 /* Edu Race — service worker (oflayn rejim).
    Xavfsizlik: faqat oʻz domenidagi GET soʻrovlar, faqat muvaffaqiyatli (200, type=basic) javoblar keshlanadi. */
 'use strict';
-const CACHE = 'edurace-v6';
-const FILES = ['./', './index.html', './style.css', './questions.js', './online.js', './game.js', './privacy.html', './privacy.css',
+const CACHE = 'edurace-v7';
+const FILES = ['./', './index.html', './style.css', './bank.js', './questions.js', './online.js', './game.js', './privacy.html', './privacy.css',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
